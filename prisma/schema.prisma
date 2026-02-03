@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SidebarSection {
+  id      Int            @id @default(autoincrement())
+  name    String
+  order   Int            @default(0)
+  options SidebarOption[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SidebarOption {
+  id        Int      @id @default(autoincrement())
+  name      String
+  icon      String   // Icon name or path
+  path      String   // URL path for navigation
+  color     String?  // Optional color for tags
+  order     Int      @default(0)
+
+  sectionId Int
+  section   SidebarSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FileItem {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String   // 'file' | 'folder' | 'image'
+  thumbnail String?  // URL to thumbnail image
+  path      String
+
+  parentId  Int?
+  parent    FileItem?  @relation("FileHierarchy", fields: [parentId], references: [id])
+  children  FileItem[] @relation("FileHierarchy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
