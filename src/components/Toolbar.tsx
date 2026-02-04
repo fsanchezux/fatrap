@@ -20,22 +20,8 @@ export default function Toolbar({
 }: ToolbarProps) {
   return (
     <div className="h-12 px-4 flex items-center justify-between border-b border-gray-200/50 bg-white/50 backdrop-blur-sm">
-      {/* Left side - Navigation buttons */}
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1">
-          <button className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-400">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
-          </button>
-          <button className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 text-gray-400">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
-          </button>
-        </div>
-        <h1 className="text-sm font-medium text-gray-800 ml-2">{title}</h1>
-      </div>
+    
+
 
       {/* Right side - View controls and search */}
       <div className="flex items-center gap-3">

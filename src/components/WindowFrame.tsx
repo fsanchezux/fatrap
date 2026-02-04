@@ -8,8 +8,8 @@ interface WindowFrameProps {
 
 export default function WindowFrame({ children }: WindowFrameProps) {
   return (
-    <div className="w-full h-screen bg-gray-100 flex items-center justify-center p-8">
-      <div className="w-full max-w-6xl h-[80vh] bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col">
+    <div className="w-full h-screen bg-gray-100 flex items-center justify-center ">
+      <div className="w-full  bg-white rounded-xl  overflow-hidden flex flex-col">
         {/* Window Title Bar */}
         <div className="h-11 bg-gradient-to-b from-gray-100 to-gray-50 border-b border-gray-200/80 flex items-center px-4 shrink-0">
           {/* Traffic lights */}
