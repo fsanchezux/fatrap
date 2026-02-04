@@ -3,6 +3,7 @@ import React from 'react'
 interface IconProps {
   className?: string
   size?: number
+  color?: string
 }
 
 export const AirDropIcon: React.FC<IconProps> = ({ className, size = 16 }) => (
