@@ -32,63 +32,43 @@ interface FileItem {
 const defaultSections: SidebarSection[] = [
   {
     id: 1,
-    name: 'Favorites',
+    name: 'Print files',
     options: [
-      { id: 1, name: 'AirDrop', icon: 'airdrop', path: '/airdrop' },
-      { id: 2, name: 'Recents', icon: 'clock', path: '/recents' },
-      { id: 3, name: 'Applications', icon: 'apps', path: '/applications' },
-      { id: 4, name: 'Desktop', icon: 'desktop', path: '/desktop' },
-      { id: 5, name: 'Documents', icon: 'folder', path: '/documents' },
-      { id: 6, name: 'Downloads', icon: 'download', path: '/downloads' },
+      { id: 1, name: 'Stickers', icon: 'sticker', path: '/print/stickers' },
+      { id: 2, name: 'DTF', icon: 'dtf', path: '/print/dtf' },
+      { id: 3, name: 'DIY recomendations', icon: 'palette', path: '/print/diy' },
     ],
   },
   {
     id: 2,
-    name: 'iCloud',
+    name: 'Gallery',
     options: [
-      { id: 7, name: 'iCloud Drive', icon: 'cloud', path: '/icloud-drive' },
-      { id: 8, name: 'Shared', icon: 'users', path: '/shared' },
+      { id: 4, name: '(2018) First steps', icon: 'gallery', path: '/gallery/2018-first-steps' },
+      { id: 5, name: '(2023) Fatrap x Caribu', icon: 'gallery', path: '/gallery/2023-fatrap-caribu' },
+      { id: 6, name: '(2024) Fatrap College', icon: 'gallery', path: '/gallery/2024-fatrap-college' },
+      { id: 7, name: '(2024) Les Santes Olimpiques', icon: 'gallery', path: '/gallery/2024-les-santes-olimpiques' },
+      { id: 8, name: '(2025) Fatrap Don\'t Stay Relevant', icon: 'gallery', path: '/gallery/2025-dont-stay-relevant' },
+      { id: 9, name: '(2025) Fatrap Welcome to the basics', icon: 'gallery', path: '/gallery/2025-welcome-to-basics' },
+      { id: 10, name: '(2025) Fatrap x Court', icon: 'gallery', path: '/gallery/2025-fatrap-court' },
+      { id: 11, name: '(2025) Fatrap Pa\' esa mierda ya no tengo tiempo', icon: 'gallery', path: '/gallery/2025-pa-esa-mierda' },
     ],
   },
   {
     id: 3,
-    name: 'Tags',
+    name: 'Contact us',
     options: [
-      { id: 9, name: 'Red', icon: 'tag', path: '/tags/red', color: '#ff6b6b' },
-      { id: 10, name: 'Orange', icon: 'tag', path: '/tags/orange', color: '#ffa94d' },
-      { id: 11, name: 'Yellow', icon: 'tag', path: '/tags/yellow', color: '#ffd43b' },
-      { id: 12, name: 'Green', icon: 'tag', path: '/tags/green', color: '#69db7c' },
-      { id: 13, name: 'Blue', icon: 'tag', path: '/tags/blue', color: '#4dabf7' },
-      { id: 14, name: 'Purple', icon: 'tag', path: '/tags/purple', color: '#da77f2' },
-      { id: 15, name: 'Gray', icon: 'tag', path: '/tags/gray', color: '#868e96' },
-      { id: 16, name: 'All Tags...', icon: 'tags', path: '/tags' },
+      { id: 12, name: 'Contact us', icon: 'mail', path: '/contact' },
     ],
   },
 ]
 
-// Default files for demo
-const defaultFiles: FileItem[] = [
-  { id: 1, name: 'tylenol.jpeg', type: 'image', path: '/files/tylenol.jpeg' },
-  { id: 2, name: 'balm_dr_m.webp', type: 'image', path: '/files/balm_dr_m.webp' },
-  { id: 3, name: 'bobby_pin.jpeg', type: 'image', path: '/files/bobby_pin.jpeg' },
-  { id: 4, name: 'trident_white.webp', type: 'image', path: '/files/trident_white.webp' },
-  { id: 5, name: 'keys3.webp', type: 'image', path: '/files/keys3.webp' },
-  { id: 6, name: 'kindle.jpeg', type: 'image', path: '/files/kindle.jpeg' },
-  { id: 7, name: 'lipstick_knife.jpeg', type: 'image', path: '/files/lipstick_knife.jpeg' },
-  { id: 8, name: 'sunglasses_case.jpeg', type: 'image', path: '/files/sunglasses_case.jpeg' },
-  { id: 9, name: 'waterbottle.jpeg', type: 'image', path: '/files/waterbottle.jpeg' },
-  { id: 10, name: 'tampons.png', type: 'image', path: '/files/tampons.png' },
-  { id: 11, name: 'sharpie.png', type: 'image', path: '/files/sharpie.png' },
-  { id: 12, name: 'touchland.png', type: 'image', path: '/files/touchland.png' },
-  { id: 13, name: 'receipt_sephora.jpeg', type: 'image', path: '/files/receipt_sephora.jpeg' },
-  { id: 14, name: 'phone_charger.png', type: 'image', path: '/files/phone_charger.png' },
-  { id: 15, name: 'aquaphor.jpeg', type: 'image', path: '/files/aquaphor.jpeg' },
-]
+// Default files - populated from database/API
+const defaultFiles: FileItem[] = []
 
 export default function Home() {
   const [sections, setSections] = useState<SidebarSection[]>(defaultSections)
   const [files, setFiles] = useState<FileItem[]>(defaultFiles)
-  const [activePath, setActivePath] = useState('/desktop')
+  const [activePath, setActivePath] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -129,15 +109,33 @@ export default function Home() {
     setActivePath(path)
   }
 
-  const filteredFiles = files.filter((file) =>
-    file.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredFiles = files
+    .filter((file) => activePath && file.path === activePath)
+    .filter((file) =>
+      file.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
 
-  const getTitle = () => {
+  // Map option names to display titles
+  const titleMap: Record<string, string> = {
+    'DTF': 'PRINT Files',
+  }
+
+  const getWindowTitle = () => {
+    if (!activePath) return undefined // shows default 'FATRAP BRAND ®'
     const option = sections
       .flatMap((s) => s.options)
       .find((o) => o.path === activePath)
-    return option?.name || 'WHAT\'S IN MY BAG'
+    if (!option) return undefined
+    return titleMap[option.name] || option.name
+  }
+
+  const getTitle = () => {
+    if (!activePath) return 'Fatrap'
+    const option = sections
+      .flatMap((s) => s.options)
+      .find((o) => o.path === activePath)
+    if (!option) return 'Fatrap'
+    return titleMap[option.name] || option.name
   }
 
   if (isLoading) {
@@ -151,10 +149,10 @@ export default function Home() {
   }
 
   return (
-    <WindowFrame>
+    <WindowFrame title={getWindowTitle()}>
       <Sidebar
         sections={sections}
-        activePath={activePath}
+        activePath={activePath ?? ''}
         onNavigate={handleNavigate}
       />
       <main className="flex-1 flex flex-col bg-white">

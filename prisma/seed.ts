@@ -1,6 +1,16 @@
 import { PrismaClient } from '@prisma/client'
+import * as fs from 'fs'
+import * as path from 'path'
 
 const prisma = new PrismaClient()
+
+interface CloudinaryFile {
+  name: string
+  type: string
+  path: string
+  thumbnail: string
+  galleryPath: string
+}
 
 async function main() {
   // Clear existing data
@@ -8,80 +18,77 @@ async function main() {
   await prisma.sidebarSection.deleteMany()
   await prisma.fileItem.deleteMany()
 
-  // Create Favorites section
-  const favorites = await prisma.sidebarSection.create({
+  // Create Print files section
+  const printFiles = await prisma.sidebarSection.create({
     data: {
-      name: 'Favorites',
+      name: 'Print files',
       order: 1,
       options: {
         create: [
-          { name: 'AirDrop', icon: 'airdrop', path: '/airdrop', order: 1 },
-          { name: 'Recents', icon: 'clock', path: '/recents', order: 2 },
-          { name: 'Applications', icon: 'apps', path: '/applications', order: 3 },
-          { name: 'Desktop', icon: 'desktop', path: '/desktop', order: 4 },
-          { name: 'Documents', icon: 'folder', path: '/documents', order: 5 },
-          { name: 'Downloads', icon: 'download', path: '/downloads', order: 6 },
+          { name: 'Stickers', icon: 'sticker', path: '/print/stickers', order: 1 },
+          { name: 'DTF', icon: 'dtf', path: '/print/dtf', order: 2 },
+          { name: 'DIY recomendations', icon: 'palette', path: '/print/diy', order: 3 },
         ],
       },
     },
   })
 
-  // Create iCloud section
-  const icloud = await prisma.sidebarSection.create({
+  // Create Gallery section
+  const gallery = await prisma.sidebarSection.create({
     data: {
-      name: 'iCloud',
+      name: 'Gallery',
       order: 2,
       options: {
         create: [
-          { name: 'iCloud Drive', icon: 'cloud', path: '/icloud-drive', order: 1 },
-          { name: 'Shared', icon: 'users', path: '/shared', order: 2 },
+          { name: '(2018) First steps', icon: 'gallery', path: '/gallery/2018-first-steps', order: 1 },
+          { name: '(2023) Fatrap x Caribu', icon: 'gallery', path: '/gallery/2023-fatrap-caribu', order: 2 },
+          { name: '(2024) Fatrap College', icon: 'gallery', path: '/gallery/2024-fatrap-college', order: 3 },
+          { name: '(2024) Les Santes Olimpiques', icon: 'gallery', path: '/gallery/2024-les-santes-olimpiques', order: 4 },
+          { name: "(2025) Fatrap Don't Stay Relevant", icon: 'gallery', path: '/gallery/2025-dont-stay-relevant', order: 5 },
+          { name: '(2025) Fatrap Welcome to the basics', icon: 'gallery', path: '/gallery/2025-welcome-to-basics', order: 6 },
+          { name: '(2025) Fatrap x Court', icon: 'gallery', path: '/gallery/2025-fatrap-court', order: 7 },
+          { name: "(2025) Fatrap Pa' esa mierda ya no tengo tiempo", icon: 'gallery', path: '/gallery/2025-pa-esa-mierda', order: 8 },
         ],
       },
     },
   })
 
-  // Create Tags section
-  const tags = await prisma.sidebarSection.create({
+  // Create Contact us section
+  const contact = await prisma.sidebarSection.create({
     data: {
-      name: 'Tags',
+      name: 'Contact us',
       order: 3,
       options: {
         create: [
-          { name: 'Red', icon: 'tag', path: '/tags/red', color: '#ff6b6b', order: 1 },
-          { name: 'Orange', icon: 'tag', path: '/tags/orange', color: '#ffa94d', order: 2 },
-          { name: 'Yellow', icon: 'tag', path: '/tags/yellow', color: '#ffd43b', order: 3 },
-          { name: 'Green', icon: 'tag', path: '/tags/green', color: '#69db7c', order: 4 },
-          { name: 'Blue', icon: 'tag', path: '/tags/blue', color: '#4dabf7', order: 5 },
-          { name: 'Purple', icon: 'tag', path: '/tags/purple', color: '#da77f2', order: 6 },
-          { name: 'Gray', icon: 'tag', path: '/tags/gray', color: '#868e96', order: 7 },
-          { name: 'All Tags...', icon: 'tags', path: '/tags', order: 8 },
+          { name: 'Contact us', icon: 'mail', path: '/contact', order: 1 },
         ],
       },
     },
   })
 
-  // Create sample file items
-  const sampleFiles = [
-    { name: 'tylenol.jpeg', type: 'image', path: '/files/tylenol.jpeg' },
-    { name: 'balm_dr_m.webp', type: 'image', path: '/files/balm_dr_m.webp' },
-    { name: 'bobby_pin.jpeg', type: 'image', path: '/files/bobby_pin.jpeg' },
-    { name: 'trident_white.webp', type: 'image', path: '/files/trident_white.webp' },
-    { name: 'keys3.webp', type: 'image', path: '/files/keys3.webp' },
-    { name: 'kindle.jpeg', type: 'image', path: '/files/kindle.jpeg' },
-    { name: 'lipstick_knife.jpeg', type: 'image', path: '/files/lipstick_knife.jpeg' },
-    { name: 'sunglasses_case.jpeg', type: 'image', path: '/files/sunglasses_case.jpeg' },
-    { name: 'waterbottle.jpeg', type: 'image', path: '/files/waterbottle.jpeg' },
-    { name: 'tampons.png', type: 'image', path: '/files/tampons.png' },
-    { name: 'sharpie.png', type: 'image', path: '/files/sharpie.png' },
-    { name: 'touchland.png', type: 'image', path: '/files/touchland.png' },
-  ]
+  // Load Cloudinary URLs from JSON file generated by upload script
+  const urlsPath = path.join(__dirname, '..', 'scripts', 'cloudinary-urls.json')
+  if (fs.existsSync(urlsPath)) {
+    const cloudinaryFiles: CloudinaryFile[] = JSON.parse(fs.readFileSync(urlsPath, 'utf-8'))
+    console.log(`Loading ${cloudinaryFiles.length} files from cloudinary-urls.json...`)
 
-  for (const file of sampleFiles) {
-    await prisma.fileItem.create({ data: file })
+    for (const file of cloudinaryFiles) {
+      await prisma.fileItem.create({
+        data: {
+          name: file.name,
+          type: file.type,
+          thumbnail: file.thumbnail,
+          path: file.path,
+        },
+      })
+    }
+    console.log(`${cloudinaryFiles.length} gallery files seeded.`)
+  } else {
+    console.log('No cloudinary-urls.json found. Skipping file seeding.')
   }
 
   console.log('Seed data created successfully!')
-  console.log({ favorites, icloud, tags })
+  console.log({ printFiles, gallery, contact })
 }
 
 main()

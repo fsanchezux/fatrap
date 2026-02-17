@@ -51,7 +51,11 @@ export default function FileGrid({ files, viewMode }: FileGridProps) {
               >
                 <td className="py-2 px-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5">{getFileIcon(file)}</span>
+                    {file.thumbnail ? (
+                      <img src={file.thumbnail} alt={file.name} className="w-5 h-5 object-cover rounded" loading="lazy" />
+                    ) : (
+                      <span className="w-5 h-5">{getFileIcon(file)}</span>
+                    )}
                     <span className="text-sm text-gray-800">{file.name}</span>
                   </div>
                 </td>
@@ -88,11 +92,13 @@ export default function FileGrid({ files, viewMode }: FileGridProps) {
               {/* Thumbnail or Icon */}
               <div className="w-16 h-16 flex items-center justify-center mb-1 relative">
                 {file.thumbnail ? (
-                  <div className="w-full h-full bg-gray-200 rounded shadow-sm flex items-center justify-center overflow-hidden">
-                    {/* Placeholder for actual thumbnails */}
-                    <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                      <ImageIcon size={24} className="text-gray-400" />
-                    </div>
+                  <div className="w-full h-full bg-gray-200 rounded shadow-sm overflow-hidden">
+                    <img
+                      src={file.thumbnail}
+                      alt={file.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
                   </div>
                 ) : (
                   <div className="w-12 h-12 flex items-center justify-center">
