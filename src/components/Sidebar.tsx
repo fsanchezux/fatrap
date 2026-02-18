@@ -39,8 +39,8 @@ export default function Sidebar({ sections, activePath, onNavigate }: SidebarPro
     <aside className="w-56 h-full bg-sidebar-bg/80 backdrop-blur-sm border-r border-gray-200/50 flex flex-col overflow-hidden">
       {/* Logo */}
       <div className="px-4 py-3 border-b border-gray-200/50">
-        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-lg">F</span>
+        <div className="w-8 h-8 rounded-lg overflow-hidden">
+          <img src="/logo.png" alt="Fatrap logo" className="w-full h-full object-contain" />
         </div>
       </div>
 

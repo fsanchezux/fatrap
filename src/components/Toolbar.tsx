@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { GridIcon, ListIcon, SearchIcon, ChevronDownIcon } from './Icons'
+import { GridIcon, ListIcon, SearchIcon } from './Icons'
 
 interface ToolbarProps {
   title: string
@@ -44,12 +44,6 @@ export default function Toolbar({
             <ListIcon size={14} />
           </button>
         </div>
-
-        {/* Sort button */}
-        <button className="flex items-center gap-1 px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded-md">
-          <span>Sort</span>
-          <ChevronDownIcon />
-        </button>
 
         {/* Search */}
         <div className="relative">
