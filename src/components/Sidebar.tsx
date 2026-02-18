@@ -24,33 +24,52 @@ interface SidebarProps {
   onNavigate: (path: string) => void
 }
 
-// Paths that belong to a collapsible group in the sidebar
-const STICKER_PATHS = ['/print/stickers/print', '/print/stickers/edit']
+// Collapsible groups config
+const GROUPS: Record<string, { paths: string[]; labels: string[]; icons: string[] }> = {
+  stickers: {
+    paths: ['/print/stickers/print', '/print/stickers/edit'],
+    labels: ['Print files', 'Edit'],
+    icons: ['sticker', 'palette'],
+  },
+  dtf: {
+    paths: ['/print/dtf/print', '/print/dtf/edit'],
+    labels: ['Print files', 'Edit'],
+    icons: ['dtf', 'palette'],
+  },
+}
+
+// Which option path triggers each group
+const PATH_TO_GROUP: Record<string, string> = {
+  '/print/stickers': 'stickers',
+  '/print/dtf': 'dtf',
+}
 
 export default function Sidebar({ sections, activePath, onNavigate }: SidebarProps) {
   const [expandedSections, setExpandedSections] = useState<Record<number | string, boolean>>(
-    sections.reduce((acc, section) => ({ ...acc, [section.id]: true }), { stickers: true } as Record<number | string, boolean>)
+    sections.reduce(
+      (acc, section) => ({ ...acc, [section.id]: true }),
+      { stickers: true, dtf: true } as Record<number | string, boolean>
+    )
   )
 
   const toggleSection = (key: number | string) => {
     setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
-  // Check if any sticker subpath is active to keep group highlighted
-  const stickerActive = STICKER_PATHS.includes(activePath)
+  const renderOption = (option: SidebarOption) => {
+    const groupKey = PATH_TO_GROUP[option.path]
 
-  const renderOption = (option: SidebarOption, indent = false) => {
-    const isActive = activePath === option.path
+    // Render as collapsible group if this option has sub-paths
+    if (groupKey) {
+      const group = GROUPS[groupKey]
+      const groupActive = group.paths.includes(activePath)
 
-    // "Stickers" group: render as collapsible parent with sub-items
-    if (option.path === '/print/stickers') {
       return (
         <li key={option.id}>
-          {/* Stickers group header */}
           <button
-            onClick={() => toggleSection('stickers')}
+            onClick={() => toggleSection(groupKey)}
             className={`w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors ${
-              stickerActive ? 'text-blue-600' : 'text-gray-700 hover:bg-sidebar-hover'
+              groupActive ? 'text-blue-600' : 'text-gray-700 hover:bg-sidebar-hover'
             }`}
           >
             <span className="w-4 h-4 flex items-center justify-center">
@@ -58,16 +77,13 @@ export default function Sidebar({ sections, activePath, onNavigate }: SidebarPro
             </span>
             <span className="flex-1 truncate text-left">{option.name}</span>
             <span className="text-gray-400">
-              {expandedSections['stickers'] ? <ChevronDownIcon /> : <ChevronRightIcon />}
+              {expandedSections[groupKey] ? <ChevronDownIcon /> : <ChevronRightIcon />}
             </span>
           </button>
 
-          {/* Sub-items */}
-          {expandedSections['stickers'] && (
+          {expandedSections[groupKey] && (
             <ul>
-              {STICKER_PATHS.map((subPath, i) => {
-                const labels = ['Print files', 'Edit']
-                const icons = ['sticker', 'palette']
+              {group.paths.map((subPath, i) => {
                 const isSubActive = activePath === subPath
                 return (
                   <li key={subPath}>
@@ -78,9 +94,9 @@ export default function Sidebar({ sections, activePath, onNavigate }: SidebarPro
                       }`}
                     >
                       <span className="w-3 h-3 flex items-center justify-center opacity-70">
-                        {getIconByName(icons[i])}
+                        {getIconByName(group.icons[i])}
                       </span>
-                      <span className="truncate">{labels[i]}</span>
+                      <span className="truncate">{group.labels[i]}</span>
                     </button>
                   </li>
                 )
@@ -91,11 +107,13 @@ export default function Sidebar({ sections, activePath, onNavigate }: SidebarPro
       )
     }
 
+    // Regular option
+    const isActive = activePath === option.path
     return (
       <li key={option.id}>
         <button
           onClick={() => onNavigate(option.path)}
-          className={`w-full ${indent ? 'pl-8' : 'px-4'} pr-4 py-1.5 flex items-center gap-2 text-sm transition-colors ${
+          className={`w-full px-4 pr-4 py-1.5 flex items-center gap-2 text-sm transition-colors ${
             isActive ? 'bg-blue-500/10 text-blue-600' : 'text-gray-700 hover:bg-sidebar-hover'
           }`}
         >
@@ -121,7 +139,6 @@ export default function Sidebar({ sections, activePath, onNavigate }: SidebarPro
       <nav className="flex-1 overflow-y-auto py-2">
         {sections.map((section) => (
           <div key={section.id} className="mb-2">
-            {/* Section Header */}
             <button
               onClick={() => toggleSection(section.id)}
               className="w-full px-3 py-1 flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700"
@@ -134,7 +151,6 @@ export default function Sidebar({ sections, activePath, onNavigate }: SidebarPro
               {section.name}
             </button>
 
-            {/* Section Options */}
             {expandedSections[section.id] && (
               <ul className="mt-1">
                 {section.options.map((option) => renderOption(option))}
