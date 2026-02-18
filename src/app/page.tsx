@@ -218,7 +218,7 @@ export default function Home() {
       return (
         <>
           <Toolbar title={getTitle()} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-          <DownloadGrid files={stickerEditFiles} />
+          <DownloadGrid files={stickerEditFiles} viewMode={viewMode} />
         </>
       )
     }
@@ -234,7 +234,7 @@ export default function Home() {
       return (
         <>
           <Toolbar title={getTitle()} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-          <DownloadGrid files={dtfEditFiles} />
+          <DownloadGrid files={dtfEditFiles} viewMode={viewMode} />
         </>
       )
     }
