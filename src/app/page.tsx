@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar'
 import Toolbar from '@/components/Toolbar'
 import FileGrid from '@/components/FileGrid'
 import ContactForm from '@/components/ContactForm'
+import DownloadGrid from '@/components/DownloadGrid'
 
 interface SidebarOption {
   id: number
@@ -29,7 +30,31 @@ interface FileItem {
   path: string
 }
 
-// Default sidebar data for when database is not available
+interface DownloadFile {
+  name: string
+  url: string
+}
+
+// Sticker print images (Cloudinary)
+const stickerPrintFiles: FileItem[] = [
+  { id: 101, name: 'sticker_logo_caribu.png', type: 'image', path: '/print/stickers/print', thumbnail: 'https://res.cloudinary.com/dduwvhgl9/image/upload/v1771440070/fatrap/print/stickers/hwsrel4fo1mviqtaemtf.png' },
+  { id: 102, name: 'sticker_logo_pequeño.png', type: 'image', path: '/print/stickers/print', thumbnail: 'https://res.cloudinary.com/dduwvhgl9/image/upload/v1771440072/fatrap/print/stickers/s7qjv99zowrqvq8ldm3t.png' },
+  { id: 103, name: 'a4_square_logo.png', type: 'image', path: '/print/stickers/print', thumbnail: 'https://res.cloudinary.com/dduwvhgl9/image/upload/v1771440072/fatrap/print/stickers/f0ksktufczxjkqct9svn.png' },
+  { id: 104, name: 'a4_lettering_sticker.png', type: 'image', path: '/print/stickers/print', thumbnail: 'https://res.cloudinary.com/dduwvhgl9/image/upload/v1771440073/fatrap/print/stickers/q4inbuv7snxncdixwfgj.png' },
+  { id: 105, name: 'fatrap_lettering sticker.png', type: 'image', path: '/print/stickers/print', thumbnail: 'https://res.cloudinary.com/dduwvhgl9/image/upload/v1771440074/fatrap/print/stickers/jxvywm78698ighyia2ht.png' },
+]
+
+// Sticker edit files (Affinity Designer .af)
+const stickerEditFiles: DownloadFile[] = [
+  { name: 'fatrap_lettering sticker.af', url: 'https://res.cloudinary.com/dduwvhgl9/raw/upload/v1771440192/fatrap/edit/stickers/ptpzvk4upt8xo1taxapb.af' },
+  { name: 'round logo sticker.af', url: 'https://res.cloudinary.com/dduwvhgl9/raw/upload/v1771440193/fatrap/edit/stickers/fwcsvv3idtncm8xzi9mi.af' },
+  { name: 'sticker_logo_pequeño.af', url: 'https://res.cloudinary.com/dduwvhgl9/raw/upload/v1771440193/fatrap/edit/stickers/mphcmlmhkwglrcamdww3.af' },
+  { name: 'sticker_logo_caribu.af', url: 'https://res.cloudinary.com/dduwvhgl9/raw/upload/v1771440194/fatrap/edit/stickers/xvdpxssdufdk5c5cvehu.af' },
+  { name: 'a4_lettering_sticker.af', url: 'https://res.cloudinary.com/dduwvhgl9/raw/upload/v1771440195/fatrap/edit/stickers/dq2adm93wxjkkjwetipe.af' },
+  { name: 'a4_square_logo.af', url: 'https://res.cloudinary.com/dduwvhgl9/raw/upload/v1771440195/fatrap/edit/stickers/wu6ftrnhvob4ocdndm0f.af' },
+]
+
+// Default sidebar data
 const defaultSections: SidebarSection[] = [
   {
     id: 1,
@@ -51,14 +76,14 @@ const defaultSections: SidebarSection[] = [
       { id: 8, name: '(2025) Fatrap Don\'t Stay Relevant', icon: 'gallery', path: '/gallery/2025-dont-stay-relevant' },
       { id: 9, name: '(2025) Fatrap Welcome to the basics', icon: 'gallery', path: '/gallery/2025-welcome-to-basics' },
       { id: 10, name: '(2025) Fatrap x Court', icon: 'gallery', path: '/gallery/2025-fatrap-court' },
-      { id: 11, name: '(2025) Fatrap Pa\' esa mierda ya no tengo tiempo', icon: 'gallery', path: '/gallery/2025-pa-esa-mierda' },
+      { id: 111, name: '(2025) Fatrap Pa\' esa mierda ya no tengo tiempo', icon: 'gallery', path: '/gallery/2025-pa-esa-mierda' },
     ],
   },
   {
     id: 3,
     name: 'Contact us',
     options: [
-      { id: 12, name: 'Contact us', icon: 'mail', path: '/contact' },
+      { id: 120, name: 'Contact us', icon: 'mail', path: '/contact' },
     ],
   },
 ]
@@ -75,7 +100,6 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Fetch sidebar sections from API
     async function fetchData() {
       try {
         const [sectionsRes, filesRes] = await Promise.all([
@@ -119,10 +143,12 @@ export default function Home() {
   // Map option names to display titles
   const titleMap: Record<string, string> = {
     'DTF': 'PRINT Files',
+    'Print files': 'Stickers — Print files',
+    'Edit': 'Stickers — Edit files',
   }
 
   const getWindowTitle = () => {
-    if (!activePath) return undefined // shows default 'FATRAP BRAND ®'
+    if (!activePath) return undefined
     const option = sections
       .flatMap((s) => s.options)
       .find((o) => o.path === activePath)
@@ -137,6 +163,35 @@ export default function Home() {
       .find((o) => o.path === activePath)
     if (!option) return 'Fatrap'
     return titleMap[option.name] || option.name
+  }
+
+  // Decide what to render in the main area
+  const renderMain = () => {
+    if (activePath === '/contact') {
+      return <ContactForm />
+    }
+    if (activePath === '/print/stickers/print') {
+      return (
+        <>
+          <Toolbar title={getTitle()} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+          <FileGrid files={stickerPrintFiles} viewMode={viewMode} />
+        </>
+      )
+    }
+    if (activePath === '/print/stickers/edit') {
+      return (
+        <>
+          <Toolbar title={getTitle()} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+          <DownloadGrid files={stickerEditFiles} />
+        </>
+      )
+    }
+    return (
+      <>
+        <Toolbar title={getTitle()} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+        <FileGrid files={filteredFiles} viewMode={viewMode} />
+      </>
+    )
   }
 
   if (isLoading) {
@@ -157,20 +212,7 @@ export default function Home() {
         onNavigate={handleNavigate}
       />
       <main className="flex-1 flex flex-col bg-white overflow-hidden">
-        {activePath === '/contact' ? (
-          <ContactForm />
-        ) : (
-          <>
-            <Toolbar
-              title={getTitle()}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-            />
-            <FileGrid files={filteredFiles} viewMode={viewMode} />
-          </>
-        )}
+        {renderMain()}
       </main>
     </WindowFrame>
   )

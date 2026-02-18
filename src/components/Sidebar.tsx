@@ -9,6 +9,7 @@ interface SidebarOption {
   icon: string
   path: string
   color?: string | null
+  children?: SidebarOption[]
 }
 
 interface SidebarSection {
@@ -23,16 +24,88 @@ interface SidebarProps {
   onNavigate: (path: string) => void
 }
 
+// Paths that belong to a collapsible group in the sidebar
+const STICKER_PATHS = ['/print/stickers/print', '/print/stickers/edit']
+
 export default function Sidebar({ sections, activePath, onNavigate }: SidebarProps) {
-  const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>(
-    sections.reduce((acc, section) => ({ ...acc, [section.id]: true }), {})
+  const [expandedSections, setExpandedSections] = useState<Record<number | string, boolean>>(
+    sections.reduce((acc, section) => ({ ...acc, [section.id]: true }), { stickers: true } as Record<number | string, boolean>)
   )
 
-  const toggleSection = (sectionId: number) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [sectionId]: !prev[sectionId]
-    }))
+  const toggleSection = (key: number | string) => {
+    setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  // Check if any sticker subpath is active to keep group highlighted
+  const stickerActive = STICKER_PATHS.includes(activePath)
+
+  const renderOption = (option: SidebarOption, indent = false) => {
+    const isActive = activePath === option.path
+
+    // "Stickers" group: render as collapsible parent with sub-items
+    if (option.path === '/print/stickers') {
+      return (
+        <li key={option.id}>
+          {/* Stickers group header */}
+          <button
+            onClick={() => toggleSection('stickers')}
+            className={`w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors ${
+              stickerActive ? 'text-blue-600' : 'text-gray-700 hover:bg-sidebar-hover'
+            }`}
+          >
+            <span className="w-4 h-4 flex items-center justify-center">
+              {getIconByName(option.icon, option.color || undefined)}
+            </span>
+            <span className="flex-1 truncate text-left">{option.name}</span>
+            <span className="text-gray-400">
+              {expandedSections['stickers'] ? <ChevronDownIcon /> : <ChevronRightIcon />}
+            </span>
+          </button>
+
+          {/* Sub-items */}
+          {expandedSections['stickers'] && (
+            <ul>
+              {STICKER_PATHS.map((subPath, i) => {
+                const labels = ['Print files', 'Edit']
+                const icons = ['sticker', 'palette']
+                const isSubActive = activePath === subPath
+                return (
+                  <li key={subPath}>
+                    <button
+                      onClick={() => onNavigate(subPath)}
+                      className={`w-full pl-10 pr-4 py-1.5 flex items-center gap-2 text-sm transition-colors ${
+                        isSubActive ? 'bg-blue-500/10 text-blue-600' : 'text-gray-600 hover:bg-sidebar-hover'
+                      }`}
+                    >
+                      <span className="w-3 h-3 flex items-center justify-center opacity-70">
+                        {getIconByName(icons[i])}
+                      </span>
+                      <span className="truncate">{labels[i]}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </li>
+      )
+    }
+
+    return (
+      <li key={option.id}>
+        <button
+          onClick={() => onNavigate(option.path)}
+          className={`w-full ${indent ? 'pl-8' : 'px-4'} pr-4 py-1.5 flex items-center gap-2 text-sm transition-colors ${
+            isActive ? 'bg-blue-500/10 text-blue-600' : 'text-gray-700 hover:bg-sidebar-hover'
+          }`}
+        >
+          <span className="w-4 h-4 flex items-center justify-center">
+            {getIconByName(option.icon, option.color || undefined)}
+          </span>
+          <span className="truncate">{option.name}</span>
+        </button>
+      </li>
+    )
   }
 
   return (
@@ -64,23 +137,7 @@ export default function Sidebar({ sections, activePath, onNavigate }: SidebarPro
             {/* Section Options */}
             {expandedSections[section.id] && (
               <ul className="mt-1">
-                {section.options.map((option) => (
-                  <li key={option.id}>
-                    <button
-                      onClick={() => onNavigate(option.path)}
-                      className={`w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors ${
-                        activePath === option.path
-                          ? 'bg-blue-500/10 text-blue-600'
-                          : 'text-gray-700 hover:bg-sidebar-hover'
-                      }`}
-                    >
-                      <span className="w-4 h-4 flex items-center justify-center">
-                        {getIconByName(option.icon, option.color || undefined)}
-                      </span>
-                      <span className="truncate">{option.name}</span>
-                    </button>
-                  </li>
-                ))}
+                {section.options.map((option) => renderOption(option))}
               </ul>
             )}
           </div>
