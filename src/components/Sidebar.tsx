@@ -22,6 +22,8 @@ interface SidebarProps {
   sections: SidebarSection[]
   activePath: string
   onNavigate: (path: string) => void
+  isOpen: boolean
+  onClose: () => void
 }
 
 // Collapsible groups config
@@ -38,13 +40,12 @@ const GROUPS: Record<string, { paths: string[]; labels: string[]; icons: string[
   },
 }
 
-// Which option path triggers each group
 const PATH_TO_GROUP: Record<string, string> = {
   '/print/stickers': 'stickers',
   '/print/dtf': 'dtf',
 }
 
-export default function Sidebar({ sections, activePath, onNavigate }: SidebarProps) {
+export default function Sidebar({ sections, activePath, onNavigate, isOpen, onClose }: SidebarProps) {
   const [expandedSections, setExpandedSections] = useState<Record<number | string, boolean>>(
     sections.reduce(
       (acc, section) => ({ ...acc, [section.id]: true }),
@@ -56,10 +57,14 @@ export default function Sidebar({ sections, activePath, onNavigate }: SidebarPro
     setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
+  const handleNavigate = (path: string) => {
+    onNavigate(path)
+    onClose() // close sidebar on mobile after selecting
+  }
+
   const renderOption = (option: SidebarOption) => {
     const groupKey = PATH_TO_GROUP[option.path]
 
-    // Render as collapsible group if this option has sub-paths
     if (groupKey) {
       const group = GROUPS[groupKey]
       const groupActive = group.paths.includes(activePath)
@@ -88,7 +93,7 @@ export default function Sidebar({ sections, activePath, onNavigate }: SidebarPro
                 return (
                   <li key={subPath}>
                     <button
-                      onClick={() => onNavigate(subPath)}
+                      onClick={() => handleNavigate(subPath)}
                       className={`w-full pl-10 pr-4 py-1.5 flex items-center gap-2 text-sm transition-colors ${
                         isSubActive ? 'bg-blue-500/10 text-blue-600' : 'text-gray-600 hover:bg-sidebar-hover'
                       }`}
@@ -107,13 +112,12 @@ export default function Sidebar({ sections, activePath, onNavigate }: SidebarPro
       )
     }
 
-    // Regular option
     const isActive = activePath === option.path
     return (
       <li key={option.id}>
         <button
-          onClick={() => onNavigate(option.path)}
-          className={`w-full px-4 pr-4 py-1.5 flex items-center gap-2 text-sm transition-colors ${
+          onClick={() => handleNavigate(option.path)}
+          className={`w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors ${
             isActive ? 'bg-blue-500/10 text-blue-600' : 'text-gray-700 hover:bg-sidebar-hover'
           }`}
         >
@@ -126,13 +130,23 @@ export default function Sidebar({ sections, activePath, onNavigate }: SidebarPro
     )
   }
 
-  return (
-    <aside className="w-56 h-full bg-sidebar-bg/80 backdrop-blur-sm border-r border-gray-200/50 flex flex-col overflow-hidden">
-      {/* Logo */}
-      <div className="px-4 py-3 border-b border-gray-200/50">
-        <div className="w-8 h-8 rounded-lg overflow-hidden">
+  const sidebarContent = (
+    <aside className="w-56 h-full bg-[#f5f5f5] border-r border-gray-200/50 flex flex-col overflow-hidden">
+      {/* Logo — bigger */}
+      <div className="px-4 py-4 border-b border-gray-200/50 flex items-center justify-between">
+        <div className="w-14 h-14 rounded-xl overflow-hidden">
           <img src="/logo.png" alt="Fatrap logo" className="w-full h-full object-contain" />
         </div>
+        {/* Close button — only visible on mobile */}
+        <button
+          onClick={onClose}
+          className="md:hidden p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 transition-colors"
+          aria-label="Close menu"
+        >
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M2 2l14 14M16 2L2 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
 
       {/* Navigation Sections */}
@@ -160,5 +174,29 @@ export default function Sidebar({ sections, activePath, onNavigate }: SidebarPro
         ))}
       </nav>
     </aside>
+  )
+
+  return (
+    <>
+      {/* Desktop: always visible */}
+      <div className="hidden md:block h-full shrink-0">
+        {sidebarContent}
+      </div>
+
+      {/* Mobile: overlay drawer */}
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
+            onClick={onClose}
+          />
+          {/* Drawer */}
+          <div className="fixed inset-y-0 left-0 z-50 md:hidden">
+            {sidebarContent}
+          </div>
+        </>
+      )}
+    </>
   )
 }

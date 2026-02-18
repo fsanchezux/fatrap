@@ -137,6 +137,7 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
@@ -257,11 +258,13 @@ export default function Home() {
   }
 
   return (
-    <WindowFrame title={getWindowTitle()}>
+    <WindowFrame title={getWindowTitle()} onMenuToggle={() => setSidebarOpen(o => !o)}>
       <Sidebar
         sections={sections}
         activePath={activePath ?? ''}
         onNavigate={handleNavigate}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
       <main className="flex-1 flex flex-col bg-white overflow-hidden">
         {renderMain()}
