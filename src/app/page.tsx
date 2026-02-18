@@ -5,6 +5,7 @@ import WindowFrame from '@/components/WindowFrame'
 import Sidebar from '@/components/Sidebar'
 import Toolbar from '@/components/Toolbar'
 import FileGrid from '@/components/FileGrid'
+import ContactForm from '@/components/ContactForm'
 
 interface SidebarOption {
   id: number
@@ -155,15 +156,21 @@ export default function Home() {
         activePath={activePath ?? ''}
         onNavigate={handleNavigate}
       />
-      <main className="flex-1 flex flex-col bg-white">
-        <Toolbar
-          title={getTitle()}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
-        <FileGrid files={filteredFiles} viewMode={viewMode} />
+      <main className="flex-1 flex flex-col bg-white overflow-hidden">
+        {activePath === '/contact' ? (
+          <ContactForm />
+        ) : (
+          <>
+            <Toolbar
+              title={getTitle()}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+            />
+            <FileGrid files={filteredFiles} viewMode={viewMode} />
+          </>
+        )}
       </main>
     </WindowFrame>
   )
