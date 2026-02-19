@@ -46,6 +46,17 @@ function fullUrl(url: string): string {
   return cloudinaryTransform(url, 'f_webp,q_auto:good')
 }
 
+/** Original file URL — no transforms, for download */
+function originalUrl(url: string): string {
+  if (!url || !url.includes('res.cloudinary.com')) return url
+  // Remove any existing transform segments between /upload/ and /v<digits>/
+  return url.replace(/\/upload\/([^/]+\/)*v\d+/, (match) => {
+    // Keep only /upload/v<version>/
+    const vMatch = match.match(/\/upload\/(v\d+)/)
+    return vMatch ? `/upload/${vMatch[1]}` : '/upload/'
+  })
+}
+
 // -------------------------------------------------------------------
 // Thumbnail component with blur-up effect
 // -------------------------------------------------------------------
@@ -179,10 +190,29 @@ function Lightbox({ files, index, onClose, onPrev, onNext }: LightboxProps) {
         </button>
       )}
 
-      {/* Counter + filename */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-sm text-center space-y-0.5">
-        <p className="font-medium">{file.name}</p>
-        <p className="text-xs">{index + 1} / {files.length}</p>
+      {/* Bottom bar: filename + counter + download */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 text-white/70 text-sm">
+        <div className="text-center space-y-0.5">
+          <p className="font-medium">{file.name}</p>
+          <p className="text-xs">{index + 1} / {files.length}</p>
+        </div>
+        {file.thumbnail && (
+          <a
+            href={originalUrl(file.thumbnail)}
+            download={file.name}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/30 text-white text-xs font-medium transition-colors"
+            title="Download original"
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M6.5 1v7.5M3 6l3.5 3.5L10 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M1 11.5h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            Download
+          </a>
+        )}
       </div>
     </div>
   )
@@ -229,7 +259,7 @@ export default function FileGrid({ files, viewMode }: FileGridProps) {
               <tr>
                 <th className="text-left py-2 px-3 font-medium">Name</th>
                 <th className="text-left py-2 px-3 font-medium">Type</th>
-                <th className="text-left py-2 px-3 font-medium">Path</th>
+                <th className="text-right py-2 px-3 font-medium">Download</th>
               </tr>
             </thead>
             <tbody>
@@ -261,7 +291,24 @@ export default function FileGrid({ files, viewMode }: FileGridProps) {
                     </div>
                   </td>
                   <td className="py-2 px-3 text-sm text-gray-500 capitalize">{file.type}</td>
-                  <td className="py-2 px-3 text-sm text-gray-400">{file.path}</td>
+                  <td className="py-2 px-3 text-right">
+                    {file.thumbnail && (
+                      <a
+                        href={originalUrl(file.thumbnail)}
+                        download={file.name}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+                      >
+                        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                          <path d="M5.5 1v6M2.5 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M1 10h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                        </svg>
+                        Download
+                      </a>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
