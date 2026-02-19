@@ -7,6 +7,7 @@ import Toolbar from '@/components/Toolbar'
 import FileGrid from '@/components/FileGrid'
 import ContactForm from '@/components/ContactForm'
 import DownloadGrid from '@/components/DownloadGrid'
+import HomePage from '@/components/HomePage'
 
 interface SidebarOption {
   id: number
@@ -204,6 +205,9 @@ export default function Home() {
 
   // Decide what to render in the main area
   const renderMain = () => {
+    if (!activePath) {
+      return <HomePage onNavigate={handleNavigate} />
+    }
     if (activePath === '/contact') {
       return <ContactForm />
     }
@@ -258,13 +262,14 @@ export default function Home() {
   }
 
   return (
-    <WindowFrame title={getWindowTitle()} onMenuToggle={() => setSidebarOpen(o => !o)}>
+    <WindowFrame>
       <Sidebar
         sections={sections}
         activePath={activePath ?? ''}
         onNavigate={handleNavigate}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onOpen={() => setSidebarOpen(true)}
       />
       <main className="flex-1 flex flex-col bg-white overflow-hidden">
         {renderMain()}

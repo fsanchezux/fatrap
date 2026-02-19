@@ -24,9 +24,9 @@ interface SidebarProps {
   onNavigate: (path: string) => void
   isOpen: boolean
   onClose: () => void
+  onOpen: () => void
 }
 
-// Collapsible groups config
 const GROUPS: Record<string, { paths: string[]; labels: string[]; icons: string[] }> = {
   stickers: {
     paths: ['/print/stickers/print', '/print/stickers/edit'],
@@ -45,7 +45,23 @@ const PATH_TO_GROUP: Record<string, string> = {
   '/print/dtf': 'dtf',
 }
 
-export default function Sidebar({ sections, activePath, onNavigate, isOpen, onClose }: SidebarProps) {
+function HamburgerIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M2 2l12 12M14 2L2 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export default function Sidebar({ sections, activePath, onNavigate, isOpen, onClose, onOpen }: SidebarProps) {
   const [expandedSections, setExpandedSections] = useState<Record<number | string, boolean>>(
     sections.reduce(
       (acc, section) => ({ ...acc, [section.id]: true }),
@@ -59,7 +75,7 @@ export default function Sidebar({ sections, activePath, onNavigate, isOpen, onCl
 
   const handleNavigate = (path: string) => {
     onNavigate(path)
-    onClose() // close sidebar on mobile after selecting
+    onClose()
   }
 
   const renderOption = (option: SidebarOption) => {
@@ -74,7 +90,7 @@ export default function Sidebar({ sections, activePath, onNavigate, isOpen, onCl
           <button
             onClick={() => toggleSection(groupKey)}
             className={`w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors ${
-              groupActive ? 'text-blue-600' : 'text-gray-700 hover:bg-sidebar-hover'
+              groupActive ? 'text-blue-600' : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
             <span className="w-4 h-4 flex items-center justify-center">
@@ -95,7 +111,7 @@ export default function Sidebar({ sections, activePath, onNavigate, isOpen, onCl
                     <button
                       onClick={() => handleNavigate(subPath)}
                       className={`w-full pl-10 pr-4 py-1.5 flex items-center gap-2 text-sm transition-colors ${
-                        isSubActive ? 'bg-blue-500/10 text-blue-600' : 'text-gray-600 hover:bg-sidebar-hover'
+                        isSubActive ? 'bg-blue-500/10 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
                       }`}
                     >
                       <span className="w-3 h-3 flex items-center justify-center opacity-70">
@@ -118,7 +134,7 @@ export default function Sidebar({ sections, activePath, onNavigate, isOpen, onCl
         <button
           onClick={() => handleNavigate(option.path)}
           className={`w-full px-4 py-1.5 flex items-center gap-2 text-sm transition-colors ${
-            isActive ? 'bg-blue-500/10 text-blue-600' : 'text-gray-700 hover:bg-sidebar-hover'
+            isActive ? 'bg-blue-500/10 text-blue-600' : 'text-gray-700 hover:bg-gray-100'
           }`}
         >
           <span className="w-4 h-4 flex items-center justify-center">
@@ -131,31 +147,31 @@ export default function Sidebar({ sections, activePath, onNavigate, isOpen, onCl
   }
 
   const sidebarContent = (
-    <aside className="w-56 h-full bg-[#f5f5f5] border-r border-gray-200/50 flex flex-col overflow-hidden">
-      {/* Logo — bigger */}
-      <div className="px-4 py-4 border-b border-gray-200/50 flex items-center justify-between">
-        <div className="w-14 h-14 rounded-xl overflow-hidden">
-          <img src="/logo.png" alt="Fatrap logo" className="w-full h-full object-contain" />
-        </div>
-        {/* Close button — only visible on mobile */}
+    <aside className="w-56 h-full bg-[#f5f5f5] border-r border-gray-200/60 flex flex-col overflow-hidden">
+      {/* Logo header — flush to top */}
+      <div className="px-4 pt-5 pb-4 flex items-center justify-between border-b border-gray-200/60">
+        <button onClick={() => onNavigate('/')} className="block">
+          <div className="w-14 h-14 rounded-xl overflow-hidden">
+            <img src="/logo.png" alt="Fatrap logo" className="w-full h-full object-contain" />
+          </div>
+        </button>
+        {/* Close button — mobile only */}
         <button
           onClick={onClose}
           className="md:hidden p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 transition-colors"
           aria-label="Close menu"
         >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M2 2l14 14M16 2L2 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
+          <CloseIcon />
         </button>
       </div>
 
-      {/* Navigation Sections */}
+      {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-2">
         {sections.map((section) => (
           <div key={section.id} className="mb-2">
             <button
               onClick={() => toggleSection(section.id)}
-              className="w-full px-3 py-1 flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700"
+              className="w-full px-3 py-1 flex items-center gap-1 text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600"
             >
               {expandedSections[section.id] ? (
                 <ChevronDownIcon className="text-gray-400" />
@@ -178,20 +194,29 @@ export default function Sidebar({ sections, activePath, onNavigate, isOpen, onCl
 
   return (
     <>
-      {/* Desktop: always visible */}
+      {/* Desktop — always visible */}
       <div className="hidden md:block h-full shrink-0">
         {sidebarContent}
       </div>
 
-      {/* Mobile: overlay drawer */}
+      {/* Mobile — hamburger button (when closed) */}
+      {!isOpen && (
+        <button
+          onClick={onOpen}
+          className="fixed top-4 left-4 z-40 md:hidden p-2 rounded-lg bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-600 hover:bg-gray-100 transition-colors shadow-sm"
+          aria-label="Open menu"
+        >
+          <HamburgerIcon />
+        </button>
+      )}
+
+      {/* Mobile — drawer */}
       {isOpen && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
             onClick={onClose}
           />
-          {/* Drawer */}
           <div className="fixed inset-y-0 left-0 z-50 md:hidden">
             {sidebarContent}
           </div>
