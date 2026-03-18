@@ -1,4 +1,12 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {}
+const nextConfig = {
+  images: {
+    localPatterns: [
+      {
+        pathname: '/images/ivangbbb-fatrap-30.png',
+      },
+    ],
+  },
+}
 
 module.exports = nextConfig
