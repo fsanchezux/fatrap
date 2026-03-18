@@ -25,6 +25,8 @@ interface SidebarProps {
   isOpen: boolean
   onClose: () => void
   onOpen: () => void
+  /** When true the sidebar is always a slide-over drawer (even on desktop) */
+  isLanding?: boolean
 }
 
 const GROUPS: Record<string, { paths: string[]; labels: string[]; icons: string[] }> = {
@@ -61,7 +63,7 @@ function CloseIcon() {
   )
 }
 
-export default function Sidebar({ sections, activePath, onNavigate, isOpen, onClose, onOpen }: SidebarProps) {
+export default function Sidebar({ sections, activePath, onNavigate, isOpen, onClose, onOpen, isLanding = false }: SidebarProps) {
   const [expandedSections, setExpandedSections] = useState<Record<number | string, boolean>>(
     sections.reduce(
       (acc, section) => ({ ...acc, [section.id]: true }),
@@ -167,6 +169,21 @@ export default function Sidebar({ sections, activePath, onNavigate, isOpen, onCl
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-2">
+        {/* Inicio */}
+        <div className="mb-2 px-2">
+          <button
+            onClick={() => handleNavigate('/')}
+            className={`w-full px-3 py-2 flex items-center gap-2 text-sm font-semibold rounded-lg transition-colors ${
+              activePath === '' ? 'bg-blue-500/10 text-blue-600' : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h4a1 1 0 001-1v-3h2v3a1 1 0 001 1h4a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+            </svg>
+            Inicio
+          </button>
+        </div>
+
         {sections.map((section) => (
           <div key={section.id} className="mb-2">
             <button
@@ -191,6 +208,26 @@ export default function Sidebar({ sections, activePath, onNavigate, isOpen, onCl
       </nav>
     </aside>
   )
+
+  // On the landing page the sidebar is ALWAYS a slide-over drawer (all screen sizes).
+  // On inner pages it behaves as a persistent sidebar on desktop.
+  if (isLanding) {
+    return (
+      <>
+        {isOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+              onClick={onClose}
+            />
+            <div className="fixed inset-y-0 left-0 z-50">
+              {sidebarContent}
+            </div>
+          </>
+        )}
+      </>
+    )
+  }
 
   return (
     <>

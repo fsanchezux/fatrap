@@ -38,7 +38,7 @@ export const DesktopIcon: React.FC<IconProps> = ({ className, size = 16 }) => (
 
 export const FolderIcon: React.FC<IconProps> = ({ className, size = 16 }) => (
   <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M3 5a2 2 0 012-2h4l2 2h8a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" fill="#64b5f6"/>
+    <path d="M3 5a2 2 0 012-2h4l2 2h8a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" fill="#9ca3af"/>
   </svg>
 )
 
@@ -182,24 +182,24 @@ export const FileIcon: React.FC<IconProps> = ({ className, size = 16 }) => (
 
 export const getIconByName = (name: string, color?: string): React.ReactNode => {
   const icons: Record<string, React.ReactNode> = {
-    airdrop: <AirDropIcon className="text-blue-500" />,
+    airdrop: <AirDropIcon className="text-gray-500" />,
     clock: <ClockIcon className="text-gray-500" />,
     apps: <AppsIcon className="text-gray-500" />,
     desktop: <DesktopIcon className="text-gray-500" />,
     folder: <FolderIcon />,
     download: <DownloadIcon className="text-gray-500" />,
-    cloud: <CloudIcon className="text-blue-400" />,
+    cloud: <CloudIcon className="text-gray-500" />,
     users: <UsersIcon className="text-gray-500" />,
     tag: <TagIcon color={color} />,
     tags: <TagsIcon className="text-gray-500" />,
     image: <ImageIcon className="text-gray-400" />,
     file: <FileIcon className="text-gray-400" />,
     printer: <PrinterIcon className="text-gray-500" />,
-    sticker: <StickerIcon className="text-orange-400" />,
-    dtf: <DTFIcon className="text-purple-500" />,
-    palette: <PaletteIcon className="text-pink-500" />,
-    gallery: <GalleryIcon className="text-blue-400" />,
-    mail: <MailIcon className="text-green-500" />,
+    sticker: <StickerIcon className="text-gray-500" />,
+    dtf: <DTFIcon className="text-gray-500" />,
+    palette: <PaletteIcon className="text-gray-500" />,
+    gallery: <GalleryIcon className="text-gray-500" />,
+    mail: <MailIcon className="text-gray-500" />,
   }
   return icons[name] || <FileIcon className="text-gray-400" />
 }

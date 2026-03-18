@@ -8,6 +8,7 @@ import FileGrid from '@/components/FileGrid'
 import ContactForm from '@/components/ContactForm'
 import DownloadGrid from '@/components/DownloadGrid'
 import HomePage from '@/components/HomePage'
+import DIYRecommendations from '@/components/DIYRecommendations'
 
 interface SidebarOption {
   id: number
@@ -139,6 +140,15 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [miy, setMiy] = useState<'idle' | 'in' | 'out'>('idle')
+
+  const handleMakeItYours = () => {
+    setMiy('in')
+    setTimeout(() => {
+      setMiy('idle')
+      setActivePath('/print/diy')
+    }, 450)
+  }
 
   useEffect(() => {
     async function fetchData() {
@@ -172,7 +182,17 @@ export default function Home() {
   }, [])
 
   const handleNavigate = (path: string) => {
-    setActivePath(path)
+    if (path === '/') {
+      setActivePath(null)
+      setSidebarOpen(false)
+    } else {
+      setActivePath(path)
+    }
+  }
+
+  const handleGoHome = () => {
+    setActivePath(null)
+    setSidebarOpen(false)
   }
 
   const filteredFiles = files
@@ -187,6 +207,7 @@ export default function Home() {
     '/print/stickers/edit': 'Stickers — Edit files',
     '/print/dtf/print': 'DTF — Print files',
     '/print/dtf/edit': 'DTF — Edit files',
+    '/print/diy': 'DIY — Recommendations',
   }
 
   const getWindowTitle = () => {
@@ -206,10 +227,13 @@ export default function Home() {
   // Decide what to render in the main area
   const renderMain = () => {
     if (!activePath) {
-      return <HomePage onNavigate={handleNavigate} />
+      return <HomePage onNavigate={handleNavigate} onMakeItYours={handleMakeItYours} />
     }
     if (activePath === '/contact') {
       return <ContactForm />
+    }
+    if (activePath === '/print/diy') {
+      return <DIYRecommendations />
     }
     if (activePath === '/print/stickers/print') {
       return (
@@ -270,10 +294,34 @@ export default function Home() {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onOpen={() => setSidebarOpen(true)}
+        isLanding={activePath === null}
       />
-      <main className="flex-1 flex flex-col bg-white overflow-hidden">
+      <main className="relative flex-1 flex flex-col bg-white overflow-hidden">
+        {/* Close-tab X button — only shown on inner pages */}
+        {activePath !== null && (
+          <button
+            onClick={handleGoHome}
+            title="Volver al inicio"
+            className="absolute top-3 right-3 z-30 w-7 h-7 rounded-full bg-gray-200 hover:bg-red-500 hover:text-white text-gray-500 flex items-center justify-center transition-colors shadow-sm"
+            aria-label="Cerrar y volver al inicio"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M1 1l10 10M11 1L1 11" />
+            </svg>
+          </button>
+        )}
         {renderMain()}
       </main>
+
+      {/* ── Make it yours zoom transition ── */}
+      {miy !== 'idle' && (
+        <div
+          className="absolute inset-0 z-50 bg-white overflow-auto miy-zoom-in"
+          style={{ transformOrigin: '22% 62%' }}
+        >
+          <DIYRecommendations />
+        </div>
+      )}
     </WindowFrame>
   )
 }
