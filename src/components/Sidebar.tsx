@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { ChevronDownIcon, ChevronRightIcon, getIconByName } from './Icons'
 
 interface SidebarOption {
@@ -64,12 +64,34 @@ function CloseIcon() {
 }
 
 export default function Sidebar({ sections, activePath, onNavigate, isOpen, onClose, onOpen, isLanding = false }: SidebarProps) {
+  const computeExpanded = (path: string): Record<number | string, boolean> => {
+    if (!path) {
+      return sections.reduce(
+        (acc, section) => ({ ...acc, [section.id]: true }),
+        { stickers: true, dtf: true } as Record<number | string, boolean>
+      )
+    }
+    const result: Record<number | string, boolean> = {}
+    sections.forEach(section => {
+      result[section.id] = section.options.some(opt => {
+        if (opt.path === path) return true
+        const groupKey = PATH_TO_GROUP[opt.path]
+        return groupKey ? GROUPS[groupKey].paths.includes(path) : false
+      })
+    })
+    Object.keys(GROUPS).forEach(groupKey => {
+      result[groupKey] = GROUPS[groupKey].paths.includes(path)
+    })
+    return result
+  }
+
   const [expandedSections, setExpandedSections] = useState<Record<number | string, boolean>>(
-    sections.reduce(
-      (acc, section) => ({ ...acc, [section.id]: true }),
-      { stickers: true, dtf: true } as Record<number | string, boolean>
-    )
+    () => computeExpanded(activePath)
   )
+
+  useEffect(() => {
+    setExpandedSections(computeExpanded(activePath))
+  }, [activePath]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleSection = (key: number | string) => {
     setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }))

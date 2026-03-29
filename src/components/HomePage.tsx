@@ -25,8 +25,9 @@ const gridItems = [
   {
     tag: '@FATRAP.CO',
     path: '/contact',
-    photo: null as string | null,
+    photo: '/images/ivangbbb-fatrap-30.png' as string | null,
     bg: 'bg-neutral-700',
+    href: 'https://www.instagram.com/fatrap.co',
   },
 ]
 
@@ -59,7 +60,7 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
           </div>
 
           {/* Subtitle */}
-          <h2 className="w-full whitespace-nowrap text-[25px] md:text-[25px] uppercase leading-tight mb-4 font-medium tracking-tight">
+          <h2 className="w-full text-[20px] sm:text-[22px] md:text-[25px] uppercase leading-tight mb-4 font-medium tracking-tight break-words">
             THE FIRST <strong className="font-black">OPEN SOURCE</strong> BRAND
           </h2>
 
@@ -104,7 +105,7 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
         </div>
 
         {/* ── Bottom photo grid ── */}
-        <div className="grid grid-cols-2 gap-2 h-48 md:h-52 shrink-0 mt-4">
+        <div className="grid grid-cols-2 grid-rows-[1fr_2fr] gap-2 flex-1 min-h-48 mt-4">
 
           {/* Cell 1 — #PRINTFILES (top-left) */}
           <GridCell item={gridItems[0]} onNavigate={onNavigate} />
@@ -120,23 +121,41 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
       {/* ══════════════════════════════════════════
           RIGHT COLUMN — hidden on mobile
       ══════════════════════════════════════════ */}
-      <div className="hidden md:block flex-1 h-full relative overflow-hidden rounded-l-2xl">
-        {HERO_PHOTO ? (
-          <Image
-            src={HERO_PHOTO}
-            alt="Fatrap crew"
-            fill
-            className="object-cover object-top"
-            priority
-          />
-        ) : (
-          /* Placeholder until a real photo is added */
-          <div className="w-full h-full bg-neutral-400 flex items-end p-6">
-            <span className="text-neutral-600 text-xs uppercase tracking-widest font-semibold">
-              Hero photo — add URL to HERO_PHOTO in HomePage.tsx
-            </span>
-          </div>
-        )}
+      <div className="hidden md:flex flex-1 h-full relative">
+
+        {/* Photo — clipped to rounded-l-2xl */}
+        <div className="absolute top-8 md:top-10 bottom-8 md:bottom-10 left-0 right-8 md:right-10 rounded-2xl overflow-hidden">
+          {HERO_PHOTO ? (
+            <Image
+              src={HERO_PHOTO}
+              alt="Fatrap crew"
+              fill
+              className="object-cover object-top"
+              priority
+            />
+          ) : (
+            <div className="w-full h-full bg-neutral-400 flex items-end p-6">
+              <span className="text-neutral-600 text-xs uppercase tracking-widest font-semibold">
+                Hero photo — add URL to HERO_PHOTO in HomePage.tsx
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Top-right notch + Contact button */}
+        <div className="absolute top-0 right-0 bg-[#e4e4e4] rounded-bl-2xl p-4">
+          <button
+            onClick={() => onNavigate('/contact')}
+            className="flex items-center gap-2 bg-white rounded-full px-5 py-2.5 font-bold text-sm uppercase tracking-widest hover:bg-gray-100 transition-colors whitespace-nowrap"
+          >
+            CONTACT US
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="2"/>
+              <path d="M2 7L12 13L22 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
+
       </div>
 
     </div>
@@ -145,17 +164,16 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
 
 /* ── Shared grid cell ── */
 interface GridCellProps {
-  item: { tag: string; path: string; photo: string | null; bg: string }
+  item: { tag: string; path: string; photo: string | null; bg: string; href?: string }
   onNavigate: (path: string) => void
   className?: string
 }
 
 function GridCell({ item, onNavigate, className = '' }: GridCellProps) {
-  return (
-    <div
-      className={`relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity ${item.bg} ${className}`}
-      onClick={() => onNavigate(item.path)}
-    >
+  const baseClassName = `relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity ${item.bg} ${className}`
+
+  const content = (
+    <>
       {item.photo ? (
         <Image src={item.photo} alt={item.tag} fill className="object-cover object-center" />
       ) : (
@@ -168,10 +186,27 @@ function GridCell({ item, onNavigate, className = '' }: GridCellProps) {
       )}
 
       {/* Tag label */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" style={{ height: '100rem' }} />
       <span className="absolute bottom-2 left-3 text-white font-black text-xs md:text-sm uppercase tracking-wide drop-shadow">
         {item.tag}
       </span>
+    </>
+  )
+
+  if (item.href) {
+    return (
+      <a href={item.href} target="_blank" rel="noopener noreferrer" className={baseClassName}>
+        {content}
+      </a>
+    )
+  }
+
+  return (
+    <div
+      className={baseClassName}
+      onClick={() => onNavigate(item.path)}
+    >
+      {content}
     </div>
   )
 }
