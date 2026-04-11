@@ -1,7 +1,10 @@
 'use client'
 
-import React from 'react'
+import React, { useRef, useEffect } from 'react'
 import Image from 'next/image'
+import gsap from 'gsap'
+import GooeyContactButton from './GooeyContactButton'
+import GooeyMakeItYoursButton from './GooeyMakeItYoursButton'
 
 interface HomePageProps {
   onNavigate: (path: string) => void
@@ -34,97 +37,224 @@ const gridItems = [
 // Hero photo on the right column — set a URL here when ready
 const HERO_PHOTO: string | null = '/images/hero.png'
 
-export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
-  return (
-    <div className="relative w-full h-screen overflow-hidden flex bg-[#e4e4e4]">
+// Scattered positions for the floating mood-board state
+const SCATTER: Record<string, { x: number; y: number; rotation: number; scale: number }> = {
+  brand:   { x: -60,  y: -80,  rotation: -6,  scale: 0.85 },
+  cell1:   { x: -120, y: 100,  rotation: 8,   scale: 0.75 },
+  cell2:   { x: 80,   y: -120, rotation: -10, scale: 0.7  },
+  cell3:   { x: -40,  y: 160,  rotation: 5,   scale: 0.8  },
+  hero:    { x: 100,  y: -40,  rotation: 4,   scale: 0.9  },
+  contact: { x: 60,   y: -100, rotation: -8,  scale: 0.8  },
+}
 
+export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const bgRef = useRef<HTMLDivElement>(null)
+  const brandRef = useRef<HTMLDivElement>(null)
+  const cell1Ref = useRef<HTMLDivElement>(null)
+  const cell2Ref = useRef<HTMLDivElement>(null)
+  const cell3Ref = useRef<HTMLDivElement>(null)
+  const heroRef = useRef<HTMLDivElement>(null)
+  const contactRef = useRef<HTMLDivElement>(null)
+  const progressRef = useRef(0) // 0 = scattered, 1 = ordered
+  const touchStartY = useRef(0)
+
+  useEffect(() => {
+    const els: Record<string, HTMLElement | null> = {
+      brand: brandRef.current,
+      cell1: cell1Ref.current,
+      cell2: cell2Ref.current,
+      cell3: cell3Ref.current,
+      hero: heroRef.current,
+      contact: contactRef.current,
+    }
+    const bg = bgRef.current
+    const container = containerRef.current
+
+    if (!bg || !container) return
+
+    const allCards = Object.values(els).filter(Boolean) as HTMLElement[]
+
+    // --- Phase 1: Set scattered initial state ---
+    for (const [key, el] of Object.entries(els)) {
+      if (!el) continue
+      const s = SCATTER[key]
+      gsap.set(el, {
+        x: s.x,
+        y: s.y,
+        rotation: s.rotation,
+        scale: s.scale,
+        opacity: 0,
+      })
+    }
+
+    gsap.set(bg, { backgroundColor: '#0a0a0a' })
+
+    // Notch elements start hidden
+    const notchEls = container.querySelectorAll('[data-notch]')
+    gsap.set(notchEls, { opacity: 0 })
+
+    // --- Intro: fade cards in with stagger ---
+    const introTl = gsap.timeline({ delay: 0.15 })
+    introTl.to(allCards, {
+      opacity: 1,
+      duration: 0.6,
+      stagger: 0.08,
+      ease: 'power2.out',
+    })
+
+    // --- Progress-driven animation ---
+    const applyProgress = (p: number) => {
+      for (const [key, el] of Object.entries(els)) {
+        if (!el) continue
+        const s = SCATTER[key]
+        gsap.to(el, {
+          x: s.x * (1 - p),
+          y: s.y * (1 - p),
+          rotation: s.rotation * (1 - p),
+          scale: s.scale + (1 - s.scale) * p,
+          duration: 0.5,
+          ease: 'power2.out',
+          overwrite: true,
+        })
+      }
+
+      // Notch elements
+      gsap.to(notchEls, {
+        opacity: p,
+        duration: 0.5,
+        ease: 'power2.out',
+        overwrite: true,
+      })
+    }
+
+    // --- Wheel (desktop) ---
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const delta = e.deltaY / 800
+      progressRef.current = Math.max(0, Math.min(1, progressRef.current + delta))
+      applyProgress(progressRef.current)
+    }
+
+    // --- Touch (mobile) ---
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY.current = e.touches[0].clientY
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault()
+      const deltaY = touchStartY.current - e.touches[0].clientY
+      touchStartY.current = e.touches[0].clientY
+      const delta = deltaY / 400
+      progressRef.current = Math.max(0, Math.min(1, progressRef.current + delta))
+      applyProgress(progressRef.current)
+    }
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    container.addEventListener('touchstart', handleTouchStart, { passive: true })
+    container.addEventListener('touchmove', handleTouchMove, { passive: false })
+
+    return () => {
+      introTl.kill()
+      container.removeEventListener('wheel', handleWheel)
+      container.removeEventListener('touchstart', handleTouchStart)
+      container.removeEventListener('touchmove', handleTouchMove)
+    }
+  }, [])
+
+  return (
+    <div ref={containerRef} className="relative w-full h-full overflow-hidden flex">
+
+      {/* Background layer — always dark */}
+      <div ref={bgRef} className="absolute inset-0 z-0" style={{ backgroundColor: '#0a0a0a' }} />
 
       {/* ══════════════════════════════════════════
           LEFT COLUMN — always visible
       ══════════════════════════════════════════ */}
-      <div className="w-full md:w-[45%] h-full flex flex-col p-8 md:p-10 shrink-0 overflow-y-auto">
+      <div className="relative z-10 w-full md:w-[45%] h-full flex flex-col p-8 md:p-10 shrink-0 overflow-hidden">
 
         {/* Brand block */}
-        <div className="flex flex-col justify-start pt-2 bg-gray-100 rounded-2xl p-6">
+        <div ref={brandRef} className="flex flex-col justify-between bg-gray-100 rounded-2xl p-4 md:p-5" style={{ height: '14rem' }}>
 
           {/* FATRAP logotype */}
-          <div className="mb-0.5">
+          <div>
             <Image
               src="/images/logo-wordmark-compressed.png"
               alt="FATRAP"
               width={3500}
               height={700}
-              className="w-96 md:w-96 h-auto"
+              className="w-64 md:w-72 h-auto"
               priority
             />
           </div>
 
-          {/* Subtitle */}
-          <h2 className="w-full text-[20px] sm:text-[22px] md:text-[25px] uppercase leading-tight mb-4 font-medium tracking-tight break-words">
-            THE FIRST <strong className="font-black">OPEN SOURCE</strong> BRAND
-          </h2>
-
-          {/* Description */}
-          <p className="text-sm text-gray-700 leading-relaxed mb-6 w-full">
-            Fatrap Brand is an open source streetwear project — all design files, print-ready artwork
-            and brand assets are freely available. Download, remix, print and wear.
+          {/* Description with inline icons */}
+          <p className="text-xs md:text-sm text-gray-700 w-full" style={{ lineHeight: '2' }}>
+            <Image
+              src="/images/icon-fatrap-logo.png"
+              alt="Fatrap"
+              width={80}
+              height={24}
+              className="inline-block align-middle mx-0.5 transition-transform duration-300 ease-out hover:scale-110 hover:-translate-y-0.5 hover:rotate-[-3deg]"
+              style={{ height: '1.6em', width: 'auto' }}
+            />
+            {' '}Brand is an open source streetwear{' '}
+            <Image
+              src="/images/icon-project.png"
+              alt="project"
+              width={100}
+              height={30}
+              className="inline-block align-middle mx-0.5 transition-transform duration-300 ease-out hover:scale-110 hover:-translate-y-0.5 hover:rotate-[2deg]"
+              style={{ height: '1.8em', width: 'auto' }}
+            />
+            {' '}&mdash; all design files,{' '}
+            <Image
+              src="/images/icon-printer.png"
+              alt="print"
+              width={28}
+              height={28}
+              className="inline-block align-middle mx-0.5 transition-transform duration-300 ease-out hover:scale-110 hover:-translate-y-0.5 hover:rotate-[-2deg]"
+              style={{ height: '1.6em', width: 'auto' }}
+            />
+            {' '}print-ready artwork and brand assets are freely available. Download,{' '}
+            <Image
+              src="/images/icon-print.png"
+              alt="print"
+              width={70}
+              height={26}
+              className="inline-block align-middle mx-0.5 transition-transform duration-300 ease-out hover:scale-110 hover:-translate-y-0.5 hover:rotate-[3deg]"
+              style={{ height: '1.8em', width: 'auto' }}
+            />
+            {' '}and wear.
           </p>
 
           {/* Make it yours CTA */}
-          <div className="mb-6 flex items-center justify-end gap-3">
-            <button
-              onClick={onMakeItYours}
-              className="group flex items-center gap-3 px-5 py-2.5 border-2 border-black rounded-full font-bold text-sm uppercase tracking-widest hover:bg-black hover:text-white transition-colors"
-            >
-              MAKE IT YOURS!
-            </button>
-            <button
-              type="button"
-              onClick={onMakeItYours}
-              aria-label="Make it yours"
-              className="w-11 h-11 rounded-full bg-[#aabed5] text-white flex items-center justify-center hover:bg-[#97afc9] transition-colors"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="text-current"
-              >
-                <path
-                  d="M5 12H19M19 12L13 6M19 12L13 18"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
+          <div className="flex items-center justify-end">
+            <GooeyMakeItYoursButton onClick={onMakeItYours} />
           </div>
         </div>
 
         {/* ── Bottom photo grid ── */}
-        <div className="grid grid-cols-2 grid-rows-[1fr_2fr] gap-2 flex-1 min-h-48 mt-4">
+        <div className="grid grid-cols-2 grid-rows-[2fr_1fr] gap-2 flex-1 min-h-48 mt-4">
 
           {/* Cell 1 — #PRINTFILES (top-left) */}
-          <GridCell item={gridItems[0]} onNavigate={onNavigate} />
+          <GridCell item={gridItems[0]} onNavigate={onNavigate} innerRef={cell1Ref} />
 
           {/* Cell 2 — #CONTRIBUTE (top-right) */}
-          <GridCell item={gridItems[1]} onNavigate={onNavigate} />
+          <GridCell item={gridItems[1]} onNavigate={onNavigate} innerRef={cell2Ref} />
 
           {/* Cell 3 — @FATRAP.CO (full width) */}
-          <GridCell item={gridItems[2]} onNavigate={onNavigate} className="col-span-2" />
+          <GridCell item={gridItems[2]} onNavigate={onNavigate} className="col-span-2" innerRef={cell3Ref} />
         </div>
       </div>
 
       {/* ══════════════════════════════════════════
           RIGHT COLUMN — hidden on mobile
       ══════════════════════════════════════════ */}
-      <div className="hidden md:flex flex-1 h-full relative">
+      <div className="relative z-10 hidden md:flex flex-1 h-full relative">
 
-        {/* Photo — clipped to rounded-l-2xl */}
-        <div className="absolute top-8 md:top-10 bottom-8 md:bottom-10 left-0 right-8 md:right-10 rounded-2xl overflow-hidden">
+        {/* Photo — clipped to rounded-2xl */}
+        <div ref={heroRef} className="absolute top-8 md:top-10 bottom-8 md:bottom-10 left-0 right-8 md:right-10 rounded-2xl overflow-hidden">
           {HERO_PHOTO ? (
             <Image
               src={HERO_PHOTO}
@@ -140,13 +270,49 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
               </span>
             </div>
           )}
+
+          {/* Notch: masks the top-right corner so the photo doesn't show behind the button */}
+          <div
+            data-notch
+            className="absolute top-0 right-0 bg-[#e4e4e4] rounded-bl-[16px] z-[5]"
+            style={{ width: 230, height: 62 }}
+          />
+          {/* Inverse radius scoop — left side of notch */}
+          <div
+            data-notch
+            className="absolute z-[5]"
+            style={{
+              top: 0,
+              right: 230,
+              width: 16,
+              height: 16,
+              background: 'radial-gradient(circle at 0% 100%, transparent 16px, #e4e4e4 16.5px)',
+            }}
+          />
+          {/* Inverse radius scoop — bottom-right of notch */}
+          <div
+            data-notch
+            className="absolute z-[5]"
+            style={{
+              top: 62,
+              right: 0,
+              width: 16,
+              height: 16,
+              background: 'radial-gradient(circle at 0% 100%, transparent 16px, #e4e4e4 16.5px)',
+            }}
+          />
         </div>
 
-        {/* Top-right notch + Contact button */}
-        <div className="absolute top-0 right-0 bg-[#e4e4e4] rounded-bl-2xl p-4">
+        {/* Contact button — aligned to top-right of the hero image */}
+        <div ref={contactRef} className="absolute top-10 right-10 z-10">
+          {/* Desktop: Gooey liquid button */}
+          <div className="hidden md:block">
+            <GooeyContactButton onClick={() => onNavigate('/contact')} />
+          </div>
+          {/* Mobile: simple pill button */}
           <button
             onClick={() => onNavigate('/contact')}
-            className="flex items-center gap-2 bg-white rounded-full px-5 py-2.5 font-bold text-sm uppercase tracking-widest hover:bg-gray-100 transition-colors whitespace-nowrap"
+            className="flex md:hidden items-center gap-2 bg-white rounded-full px-5 py-2.5 font-bold text-sm uppercase tracking-widest hover:bg-gray-100 transition-colors whitespace-nowrap"
           >
             CONTACT US
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -167,9 +333,10 @@ interface GridCellProps {
   item: { tag: string; path: string; photo: string | null; bg: string; href?: string }
   onNavigate: (path: string) => void
   className?: string
+  innerRef?: React.RefObject<HTMLDivElement | HTMLAnchorElement | null>
 }
 
-function GridCell({ item, onNavigate, className = '' }: GridCellProps) {
+function GridCell({ item, onNavigate, className = '', innerRef }: GridCellProps) {
   const baseClassName = `relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity ${item.bg} ${className}`
 
   const content = (
@@ -195,7 +362,7 @@ function GridCell({ item, onNavigate, className = '' }: GridCellProps) {
 
   if (item.href) {
     return (
-      <a href={item.href} target="_blank" rel="noopener noreferrer" className={baseClassName}>
+      <a ref={innerRef as React.RefObject<HTMLAnchorElement | null>} href={item.href} target="_blank" rel="noopener noreferrer" className={baseClassName}>
         {content}
       </a>
     )
@@ -203,6 +370,7 @@ function GridCell({ item, onNavigate, className = '' }: GridCellProps) {
 
   return (
     <div
+      ref={innerRef as React.RefObject<HTMLDivElement | null>}
       className={baseClassName}
       onClick={() => onNavigate(item.path)}
     >

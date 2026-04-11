@@ -16,6 +16,7 @@
     "@neondatabase/serverless": "^1.0.2",
     "@prisma/client": "^5.10.0",
     "cloudinary": "^2.9.0",
+    "gsap": "^3.14.2",
     "next": "^14.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
