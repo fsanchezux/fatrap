@@ -51,7 +51,7 @@ export default function GooeyContactButton({ onClick }: GooeyContactButtonProps)
       duration: 0.7,
       ease: 'elastic.out(1, 0.25)',
       overwrite: true,
-      onComplete: () => idleTl.current?.resume(),
+      onComplete: () => { idleTl.current?.resume() },
     })
     gsap.to(pillRef.current, {
       scaleX: 1,

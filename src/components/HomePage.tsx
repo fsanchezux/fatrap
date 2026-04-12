@@ -468,7 +468,7 @@ function GridCell({ item, onNavigate, className = '', innerRef, labelPosition = 
 
   if (item.href) {
     return (
-      <a ref={innerRef as React.RefObject<HTMLAnchorElement | null>} href={item.href} target="_blank" rel="noopener noreferrer" className={baseClassName} style={style}>
+      <a ref={innerRef as unknown as React.Ref<HTMLAnchorElement>} href={item.href} target="_blank" rel="noopener noreferrer" className={baseClassName} style={style}>
         {content}
       </a>
     )
@@ -476,7 +476,7 @@ function GridCell({ item, onNavigate, className = '', innerRef, labelPosition = 
 
   return (
     <div
-      ref={innerRef as React.RefObject<HTMLDivElement | null>}
+      ref={innerRef as unknown as React.Ref<HTMLDivElement>}
       className={baseClassName}
       style={style}
       onClick={() => onNavigate(item.path)}

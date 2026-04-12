@@ -60,7 +60,7 @@ export default function GooeyMakeItYoursButton({ onClick }: GooeyMakeItYoursButt
       duration: 0.7,
       ease: 'elastic.out(1, 0.25)',
       overwrite: true,
-      onComplete: () => idleTl.current?.restart(),
+      onComplete: () => { idleTl.current?.restart() },
     })
   }, [])
 
