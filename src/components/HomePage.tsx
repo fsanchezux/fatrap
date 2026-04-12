@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
 import gsap from 'gsap'
 import GooeyContactButton from './GooeyContactButton'
@@ -58,6 +58,34 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
   const contactRef = useRef<HTMLDivElement>(null)
   const progressRef = useRef(0) // 0 = scattered, 1 = ordered
   const touchStartY = useRef(0)
+  const [clipNotch, setClipNotch] = useState('30%')
+
+  // Recalculate clip-path notch based on actual element positions
+  const updateClipNotch = useCallback(() => {
+    const contribute = cell2Ref.current
+    const fatrap = cell3Ref.current
+    if (!contribute || !fatrap) return
+    const cRect = contribute.getBoundingClientRect()
+    const fRect = fatrap.getBoundingClientRect()
+    const overlap = cRect.bottom - fRect.top + 8 // +8px to match grid gap-2
+    if (overlap > 0 && fRect.height > 0) {
+      const pct = Math.round((overlap / fRect.height) * 100)
+      setClipNotch(`${pct}%`)
+    }
+  }, [])
+
+  // Observe resizes to keep clip-path in sync
+  useEffect(() => {
+    const contribute = cell2Ref.current
+    const fatrap = cell3Ref.current
+    if (!contribute || !fatrap) return
+
+    const ro = new ResizeObserver(updateClipNotch)
+    ro.observe(contribute)
+    ro.observe(fatrap)
+
+    return () => ro.disconnect()
+  }, [updateClipNotch])
 
   useEffect(() => {
     const els: Record<string, HTMLElement | null> = {
@@ -126,6 +154,9 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
         ease: 'power2.out',
         overwrite: true,
       })
+
+      // Recalculate clip-path after cards move
+      setTimeout(updateClipNotch, 550)
     }
 
     // --- Wheel (desktop) ---
@@ -160,7 +191,7 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
       container.removeEventListener('touchstart', handleTouchStart)
       container.removeEventListener('touchmove', handleTouchMove)
     }
-  }, [])
+  }, [updateClipNotch])
 
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden flex">
@@ -174,77 +205,144 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
       <div className="relative z-10 w-full md:w-[45%] h-full flex flex-col p-8 md:p-10 shrink-0 overflow-hidden">
 
         {/* Brand block */}
-        <div ref={brandRef} className="flex flex-col justify-between bg-gray-100 rounded-2xl p-4 md:p-5" style={{ height: '14rem' }}>
+        <div ref={brandRef} className="relative flex flex-col bg-gray-100 rounded-2xl p-5 md:p-6">
 
-          {/* FATRAP logotype */}
-          <div>
+          {/* FATRAP logotype + 01 */}
+          <div className="flex items-start justify-between mb-2">
             <Image
               src="/images/logo-wordmark-compressed.png"
               alt="FATRAP"
               width={3500}
               height={700}
-              className="w-64 md:w-72 h-auto"
+              className="w-48 md:w-64 lg:w-72 h-auto"
               priority
             />
+            <span className="text-xs font-bold text-gray-900 tracking-wide">01</span>
           </div>
 
-          {/* Description with inline icons */}
-          <p className="text-xs md:text-sm text-gray-700 w-full" style={{ lineHeight: '2' }}>
-            <Image
-              src="/images/icon-fatrap-logo.png"
-              alt="Fatrap"
-              width={80}
-              height={24}
-              className="inline-block align-middle mx-0.5 transition-transform duration-300 ease-out hover:scale-110 hover:-translate-y-0.5 hover:rotate-[-3deg]"
-              style={{ height: '1.6em', width: 'auto' }}
-            />
-            {' '}Brand is an open source streetwear{' '}
-            <Image
-              src="/images/icon-project.png"
-              alt="project"
-              width={100}
-              height={30}
-              className="inline-block align-middle mx-0.5 transition-transform duration-300 ease-out hover:scale-110 hover:-translate-y-0.5 hover:rotate-[2deg]"
-              style={{ height: '1.8em', width: 'auto' }}
-            />
-            {' '}&mdash; all design files,{' '}
-            <Image
-              src="/images/icon-printer.png"
-              alt="print"
-              width={28}
-              height={28}
-              className="inline-block align-middle mx-0.5 transition-transform duration-300 ease-out hover:scale-110 hover:-translate-y-0.5 hover:rotate-[-2deg]"
-              style={{ height: '1.6em', width: 'auto' }}
-            />
-            {' '}print-ready artwork and brand assets are freely available. Download,{' '}
-            <Image
-              src="/images/icon-print.png"
-              alt="print"
-              width={70}
-              height={26}
-              className="inline-block align-middle mx-0.5 transition-transform duration-300 ease-out hover:scale-110 hover:-translate-y-0.5 hover:rotate-[3deg]"
-              style={{ height: '1.8em', width: 'auto' }}
-            />
-            {' '}and wear.
-          </p>
+          {/* Description text — reserves space for the button in the bottom-right on desktop */}
+          <div className="text-base md:text-lg lg:text-xl text-gray-700 w-full leading-snug md:pb-2">
+            {/* Mobile: float-right so text wraps. Desktop: hidden (button is absolute instead) */}
+            <div className="float-right ml-2 -mb-2 md:hidden">
+              <GooeyMakeItYoursButton onClick={onMakeItYours} />
+            </div>
+            Fatrap Brand is an <strong className="font-black text-gray-900">open source</strong> streetwear project
+            &mdash; all design files, print-ready artwork and brand assets
+            are <strong className="font-black text-gray-900">freely available</strong>. Download, remix, <strong className="font-black text-gray-900">and</strong> wear.
+          </div>
 
-          {/* Make it yours CTA */}
-          <div className="flex items-center justify-end">
+          {/* Desktop: button pinned to bottom-right corner of the card */}
+          <div className="hidden md:block absolute bottom-2 right-2">
             <GooeyMakeItYoursButton onClick={onMakeItYours} />
           </div>
         </div>
 
-        {/* ── Bottom photo grid ── */}
-        <div className="grid grid-cols-2 grid-rows-[2fr_1fr] gap-2 flex-1 min-h-48 mt-4">
+        {/* ── Bottom photo grid — L-shaped @FATRAP card ── */}
+        <div className="relative flex-1 min-h-48 mt-2">
+          {/* CSS Grid: 2 cols × 3 rows. EXPLORE=short top-left, CONTRIBUTE=top-right spanning 2 rows,
+              @FATRAP=full-width bottom spanning 2 rows with clip-path notch in top-left */}
+          <div
+            className="grid h-full gap-2"
+            style={{
+              gridTemplateColumns: '1fr 1fr',
+              gridTemplateRows: 'auto 1fr 1fr 1fr',
+            }}
+          >
+            {/* EXPLORE OUR FILES — row1, col1 (compact) */}
+            <div
+              ref={cell1Ref}
+              className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity p-4 z-10"
+              style={{ backgroundColor: '#E8330A', gridColumn: '1', gridRow: '1' }}
+              onClick={() => onNavigate(gridItems[0].path)}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="text-black font-black text-xl md:text-2xl uppercase leading-tight">
+                  EXPLORE<br />OUR FILES
+                </h3>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-black flex-shrink-0 mt-0.5">
+                  <path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+            </div>
 
-          {/* Cell 1 — #PRINTFILES (top-left) */}
-          <GridCell item={gridItems[0]} onNavigate={onNavigate} innerRef={cell1Ref} />
+            {/* #CONTRIBUTE — row1+row2, col2 */}
+            <GridCell
+              item={gridItems[1]}
+              onNavigate={onNavigate}
+              innerRef={cell2Ref}
+              className="z-10"
+              style={{ gridColumn: '2', gridRow: '1 / 4', height: 'clamp(8rem, 18vw, 14rem)' }}
+            />
 
-          {/* Cell 2 — #CONTRIBUTE (top-right) */}
-          <GridCell item={gridItems[1]} onNavigate={onNavigate} innerRef={cell2Ref} />
+            {/* @FATRAP.CO — row2+row3, col1+col2, L-shaped with rounded notch */}
+            <div
+              ref={cell3Ref as React.RefObject<HTMLDivElement>}
+              className="relative overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity rounded-xl"
+              style={{
+                gridColumn: '1 / 3',
+                gridRow: '2 / 5',
+              }}
+              onClick={() => {
+                if (gridItems[2].href) {
+                  window.open(gridItems[2].href, '_blank')
+                } else {
+                  onNavigate(gridItems[2].path)
+                }
+              }}
+            >
+              {gridItems[2].photo && (
+                <Image src={gridItems[2].photo} alt={gridItems[2].tag} fill className="object-cover object-top" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <span className="absolute bottom-3 left-4 text-white font-black text-xs md:text-sm uppercase tracking-wide drop-shadow">
+                FOLLOW US: @FATRAP.CO
+              </span>
 
-          {/* Cell 3 — @FATRAP.CO (full width) */}
-          <GridCell item={gridItems[2]} onNavigate={onNavigate} className="col-span-2" innerRef={cell3Ref} />
+              {/* Notch overlay — covers top-right where #CONTRIBUTE sits */}
+              <div
+                className="absolute bg-[#0a0a0a] z-[5] rounded-bl-2xl"
+                style={{
+                  top: 0,
+                  right: 0,
+                  width: 'calc(50% + 4px)',
+                  height: clipNotch,
+                }}
+              />
+              {/* Inverse radius scoop — bottom-left of notch */}
+              <div
+                className="absolute z-[5]"
+                style={{
+                  top: clipNotch,
+                  right: 'calc(50% + 4px - 16px)',
+                  width: 16,
+                  height: 16,
+                  background: 'radial-gradient(circle at 100% 0%, transparent 16px, #0a0a0a 16.5px)',
+                }}
+              />
+              {/* Inverse radius scoop — top-left of notch (where vertical edge meets card top) */}
+              <div
+                className="absolute z-[5]"
+                style={{
+                  top: 0,
+                  right: 'calc(50% + 4px)',
+                  width: 16,
+                  height: 16,
+                  background: 'radial-gradient(circle at 100% 100%, transparent 16px, #0a0a0a 16.5px)',
+                }}
+              />
+              {/* Inverse radius scoop — bottom-right of notch (where notch meets card right edge) */}
+              <div
+                className="absolute z-[5]"
+                style={{
+                  top: clipNotch,
+                  right: 0,
+                  width: 16,
+                  height: 16,
+                  background: 'radial-gradient(circle at 0% 100%, transparent 16px, #0a0a0a 16.5px)',
+                }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -274,7 +372,7 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
           {/* Notch: masks the top-right corner so the photo doesn't show behind the button */}
           <div
             data-notch
-            className="absolute top-0 right-0 bg-[#e4e4e4] rounded-bl-[16px] z-[5]"
+            className="absolute top-0 right-0 bg-[#0a0a0a] rounded-bl-[16px] z-[5]"
             style={{ width: 230, height: 62 }}
           />
           {/* Inverse radius scoop — left side of notch */}
@@ -286,7 +384,7 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
               right: 230,
               width: 16,
               height: 16,
-              background: 'radial-gradient(circle at 0% 100%, transparent 16px, #e4e4e4 16.5px)',
+              background: 'radial-gradient(circle at 0% 100%, transparent 16px, #0a0a0a 16.5px)',
             }}
           />
           {/* Inverse radius scoop — bottom-right of notch */}
@@ -298,7 +396,7 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
               right: 0,
               width: 16,
               height: 16,
-              background: 'radial-gradient(circle at 0% 100%, transparent 16px, #e4e4e4 16.5px)',
+              background: 'radial-gradient(circle at 0% 100%, transparent 16px, #0a0a0a 16.5px)',
             }}
           />
         </div>
@@ -334,10 +432,14 @@ interface GridCellProps {
   onNavigate: (path: string) => void
   className?: string
   innerRef?: React.RefObject<HTMLDivElement | HTMLAnchorElement | null>
+  labelPosition?: 'bottom-left' | 'top-left'
+  style?: React.CSSProperties
 }
 
-function GridCell({ item, onNavigate, className = '', innerRef }: GridCellProps) {
+function GridCell({ item, onNavigate, className = '', innerRef, labelPosition = 'bottom-left', style }: GridCellProps) {
   const baseClassName = `relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity ${item.bg} ${className}`
+
+  const isTop = labelPosition === 'top-left'
 
   const content = (
     <>
@@ -353,8 +455,12 @@ function GridCell({ item, onNavigate, className = '', innerRef }: GridCellProps)
       )}
 
       {/* Tag label */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" style={{ height: '100rem' }} />
-      <span className="absolute bottom-2 left-3 text-white font-black text-xs md:text-sm uppercase tracking-wide drop-shadow">
+      {isTop ? (
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-transparent" style={{ height: '50%' }} />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" style={{ height: '100rem' }} />
+      )}
+      <span className={`absolute text-white font-black text-xs md:text-sm uppercase tracking-wide drop-shadow ${isTop ? 'top-3 right-4' : 'bottom-2 left-3'}`}>
         {item.tag}
       </span>
     </>
@@ -362,7 +468,7 @@ function GridCell({ item, onNavigate, className = '', innerRef }: GridCellProps)
 
   if (item.href) {
     return (
-      <a ref={innerRef as React.RefObject<HTMLAnchorElement | null>} href={item.href} target="_blank" rel="noopener noreferrer" className={baseClassName}>
+      <a ref={innerRef as React.RefObject<HTMLAnchorElement | null>} href={item.href} target="_blank" rel="noopener noreferrer" className={baseClassName} style={style}>
         {content}
       </a>
     )
@@ -372,6 +478,7 @@ function GridCell({ item, onNavigate, className = '', innerRef }: GridCellProps)
     <div
       ref={innerRef as React.RefObject<HTMLDivElement | null>}
       className={baseClassName}
+      style={style}
       onClick={() => onNavigate(item.path)}
     >
       {content}

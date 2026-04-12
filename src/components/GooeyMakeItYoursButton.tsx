@@ -106,7 +106,7 @@ export default function GooeyMakeItYoursButton({ onClick }: GooeyMakeItYoursButt
             style={{
               width: 60,
               height: 60,
-              backgroundColor: '#aabed5',
+              backgroundColor: '#E8330A',
             }}
           />
 
@@ -117,7 +117,7 @@ export default function GooeyMakeItYoursButton({ onClick }: GooeyMakeItYoursButt
             style={{
               width: 22,
               height: 22,
-              backgroundColor: '#aabed5',
+              backgroundColor: '#E8330A',
               top: '50%',
               left: '50%',
               marginTop: -11,
