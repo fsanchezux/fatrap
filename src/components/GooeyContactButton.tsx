@@ -95,11 +95,11 @@ export default function GooeyContactButton({ onClick }: GooeyContactButtonProps)
           {/* Pill body */}
           <div
             ref={pillRef}
-            className="rounded-full font-bold text-sm uppercase tracking-widest whitespace-nowrap text-white"
+            className="rounded-full font-bold text-sm uppercase tracking-widest whitespace-nowrap text-black"
             style={{
               padding: '13px 26px',
               transformOrigin: 'left center',
-              backgroundColor: '#E8330A',
+              backgroundColor: '#c3c491',
             }}
           >
             CONTACT US
@@ -109,7 +109,7 @@ export default function GooeyContactButton({ onClick }: GooeyContactButtonProps)
           <div
             ref={circleRef}
             className="rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ width: 46, height: 46, backgroundColor: '#E8330A' }}
+            style={{ width: 46, height: 46, backgroundColor: '#c3c491' }}
           >
             <svg
               width="20"
@@ -117,7 +117,7 @@ export default function GooeyContactButton({ onClick }: GooeyContactButtonProps)
               viewBox="0 0 24 24"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
-              className="text-white"
+              className="text-black"
             >
               <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
               <path d="M2 7L12 13L22 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

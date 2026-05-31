@@ -4,7 +4,6 @@ import React, { useRef, useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
 import gsap from 'gsap'
 import GooeyContactButton from './GooeyContactButton'
-import GooeyMakeItYoursButton from './GooeyMakeItYoursButton'
 
 interface HomePageProps {
   onNavigate: (path: string) => void
@@ -37,17 +36,18 @@ const gridItems = [
 // Hero photo on the right column — set a URL here when ready
 const HERO_PHOTO: string | null = '/images/hero.png'
 
-// Scattered positions for the floating mood-board state
-const SCATTER: Record<string, { x: number; y: number; rotation: number; scale: number }> = {
-  brand:   { x: -60,  y: -80,  rotation: -6,  scale: 0.85 },
-  cell1:   { x: -120, y: 100,  rotation: 8,   scale: 0.75 },
-  cell2:   { x: 80,   y: -120, rotation: -10, scale: 0.7  },
-  cell3:   { x: -40,  y: 160,  rotation: 5,   scale: 0.8  },
-  hero:    { x: 100,  y: -40,  rotation: 4,   scale: 0.9  },
-  contact: { x: 60,   y: -100, rotation: -8,  scale: 0.8  },
+// Scattered positions for the floating mood-board state — collage feel:
+// big, heavily rotated, overlapping pieces that snap into the grid on scroll.
+const SCATTER: Record<string, { x: number; y: number; rotation: number; scale: number; z: number }> = {
+  brand:   { x: 180,  y: 120,  rotation: -14, scale: 1.05, z: 3 },
+  cell1:   { x: 80,   y: -180, rotation: 16,  scale: 1.15, z: 6 },
+  cell2:   { x: 260,  y: 40,   rotation: -18, scale: 1.20, z: 5 },
+  cell3:   { x: 140,  y: 220,  rotation: 10,  scale: 1.10, z: 4 },
+  hero:    { x: -220, y: -60,  rotation: 12,  scale: 1.15, z: 2 },
+  contact: { x: -120, y: 180,  rotation: -10, scale: 1.05, z: 7 },
 }
 
-export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
+export default function HomePage({ onNavigate }: HomePageProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const bgRef = useRef<HTMLDivElement>(null)
   const brandRef = useRef<HTMLDivElement>(null)
@@ -56,6 +56,7 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
   const cell3Ref = useRef<HTMLDivElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
   const contactRef = useRef<HTMLDivElement>(null)
+  const scrollCtaRef = useRef<HTMLDivElement>(null)
   const progressRef = useRef(0) // 0 = scattered, 1 = ordered
   const touchStartY = useRef(0)
   const [clipNotch, setClipNotch] = useState('30%')
@@ -112,6 +113,7 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
         y: s.y,
         rotation: s.rotation,
         scale: s.scale,
+        zIndex: s.z,
         opacity: 0,
       })
     }
@@ -122,7 +124,10 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
     const notchEls = container.querySelectorAll('[data-notch]')
     gsap.set(notchEls, { opacity: 0 })
 
-    // --- Intro: fade cards in with stagger ---
+    // --- Intro: fade cards in with stagger, then slowly fade in scroll CTA ---
+    const scrollCta = scrollCtaRef.current
+    if (scrollCta) gsap.set(scrollCta, { opacity: 0 })
+
     const introTl = gsap.timeline({ delay: 0.15 })
     introTl.to(allCards, {
       opacity: 1,
@@ -130,9 +135,47 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
       stagger: 0.08,
       ease: 'power2.out',
     })
+    let ctaTween: gsap.core.Tween | null = null
+    if (scrollCta) {
+      // Long, slow fade-in after intro completes, only if user hasn't scrolled
+      ctaTween = gsap.to(scrollCta, {
+        opacity: 1,
+        duration: 4,
+        delay: 1.5,
+        ease: 'power1.inOut',
+      })
+    }
+
+    // --- Cascade drift — pieces drift up/down continuously while scattered,
+    // each desynced so it feels like a live mood-board. ---
+    const breathTls: gsap.core.Tween[] = []
+    Object.entries(els).forEach(([key, el], i) => {
+      if (!el) return
+      const startY = SCATTER[key].y
+      const amplitude = 50 + (i % 3) * 20
+      const t = gsap.to(el, {
+        y: startY + amplitude,
+        duration: 4 + (i % 4) * 0.7,
+        ease: 'sine.inOut',
+        repeat: -1,
+        yoyo: true,
+        delay: -i * 0.9,
+      })
+      breathTls.push(t)
+    })
 
     // --- Progress-driven animation ---
+    let breathKilled = false
     const applyProgress = (p: number) => {
+      // Kill breathing + cancel CTA fade-in and hide it on first scroll
+      if (!breathKilled && p > 0) {
+        breathTls.forEach(t => t.kill())
+        breathKilled = true
+        if (ctaTween) ctaTween.kill()
+        if (scrollCta) {
+          gsap.to(scrollCta, { opacity: 0, duration: 0.4, ease: 'power2.out', overwrite: true })
+        }
+      }
       for (const [key, el] of Object.entries(els)) {
         if (!el) continue
         const s = SCATTER[key]
@@ -187,6 +230,8 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
 
     return () => {
       introTl.kill()
+      if (ctaTween) ctaTween.kill()
+      breathTls.forEach(t => t.kill())
       container.removeEventListener('wheel', handleWheel)
       container.removeEventListener('touchstart', handleTouchStart)
       container.removeEventListener('touchmove', handleTouchMove)
@@ -199,10 +244,21 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
       {/* Background layer — always dark */}
       <div ref={bgRef} className="absolute inset-0 z-0" style={{ backgroundColor: '#0a0a0a' }} />
 
+      {/* Scroll CTA — fades in slowly if user doesn't scroll */}
+      <div
+        ref={scrollCtaRef}
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[15] pointer-events-none select-none"
+        style={{ opacity: 0 }}
+      >
+        <div className="bg-neutral-700/80 backdrop-blur-sm text-white text-sm md:text-base font-medium px-5 py-2.5 rounded-full whitespace-nowrap">
+          Scroll down to start
+        </div>
+      </div>
+
       {/* ══════════════════════════════════════════
           LEFT COLUMN — always visible
       ══════════════════════════════════════════ */}
-      <div className="relative z-10 w-full md:w-[45%] h-full flex flex-col p-8 md:p-10 shrink-0 overflow-hidden">
+      <div className="relative z-10 w-full md:w-[45%] h-full flex flex-col p-8 md:py-10 md:pl-10 md:pr-2 shrink-0 overflow-hidden">
 
         {/* Brand block */}
         <div ref={brandRef} className="relative flex flex-col bg-gray-100 rounded-2xl p-5 md:p-6">
@@ -217,23 +273,14 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
               className="w-48 md:w-64 lg:w-72 h-auto"
               priority
             />
-            <span className="text-xs font-bold text-gray-900 tracking-wide">01</span>
+            <span className="text-xs font-medium text-gray-400 tracking-wide">01</span>
           </div>
 
-          {/* Description text — reserves space for the button in the bottom-right on desktop */}
-          <div className="text-base md:text-lg lg:text-xl text-gray-700 w-full leading-snug md:pb-2">
-            {/* Mobile: float-right so text wraps. Desktop: hidden (button is absolute instead) */}
-            <div className="float-right ml-2 -mb-2 md:hidden">
-              <GooeyMakeItYoursButton onClick={onMakeItYours} />
-            </div>
-            Fatrap Brand is an <strong className="font-black text-gray-900">open source</strong> streetwear project
+          {/* Description text — highlighted words in medium weight + darker, rest in lighter grey */}
+          <div className="text-base md:text-lg lg:text-xl text-gray-400 w-full leading-snug md:pb-2 font-normal">
+            Fatrap Brand is an <span className="font-medium text-gray-900">open source</span> streetwear project
             &mdash; all design files, print-ready artwork and brand assets
-            are <strong className="font-black text-gray-900">freely available</strong>. Download, remix, <strong className="font-black text-gray-900">and</strong> wear.
-          </div>
-
-          {/* Desktop: button pinned to bottom-right corner of the card */}
-          <div className="hidden md:block absolute bottom-2 right-2">
-            <GooeyMakeItYoursButton onClick={onMakeItYours} />
+            are <span className="font-medium text-gray-900">freely available</span>. Download, remix, <span className="font-medium text-gray-900">and wear</span>.
           </div>
         </div>
 
@@ -245,34 +292,39 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
             className="grid h-full gap-2"
             style={{
               gridTemplateColumns: '1fr 1fr',
-              gridTemplateRows: 'auto 1fr 1fr 1fr',
+              gridTemplateRows: '5.5rem 1fr 1fr 1fr',
             }}
           >
-            {/* EXPLORE OUR FILES — row1, col1 (compact) */}
+            {/* Explore our files — row1, col1 (compact, minimal pill-style) */}
             <div
               ref={cell1Ref}
-              className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity p-4 z-10"
-              style={{ backgroundColor: '#E8330A', gridColumn: '1', gridRow: '1' }}
+              className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity px-5 z-10 flex items-center"
+              style={{ backgroundColor: '#c3c491', gridColumn: '1', gridRow: '1' }}
               onClick={() => onNavigate(gridItems[0].path)}
             >
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="text-black font-black text-xl md:text-2xl uppercase leading-tight">
-                  EXPLORE<br />OUR FILES
-                </h3>
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-black flex-shrink-0 mt-0.5">
-                  <path d="M7 17L17 7M17 7H7M17 7V17" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+              <div className="flex items-center gap-4">
+                <span className="rounded-full bg-black flex-shrink-0" style={{ width: '1.25rem', height: '1.25rem' }} />
+                <span className="text-black font-medium text-xl md:text-2xl lg:text-3xl leading-tight">
+                  Explore our files
+                </span>
               </div>
             </div>
 
-            {/* #CONTRIBUTE — row1+row2, col2 */}
-            <GridCell
-              item={gridItems[1]}
-              onNavigate={onNavigate}
-              innerRef={cell2Ref}
-              className="z-10"
+            {/* Contribute — row1+row2, col2 (with grey translucent pill bottom-right) */}
+            <div
+              ref={cell2Ref}
+              className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity z-10"
               style={{ gridColumn: '2', gridRow: '1 / 4', height: 'clamp(8rem, 18vw, 14rem)' }}
-            />
+              onClick={() => onNavigate(gridItems[1].path)}
+            >
+              {gridItems[1].photo && (
+                <Image src={gridItems[1].photo} alt={gridItems[1].tag} fill className="object-cover object-center" />
+              )}
+              {/* Grey translucent pill — bottom-right */}
+              <span className="absolute bottom-3 right-3 bg-neutral-700/80 backdrop-blur-sm text-white text-xs md:text-sm font-medium px-3 py-1.5 rounded-md">
+                Contribute
+              </span>
+            </div>
 
             {/* @FATRAP.CO — row2+row3, col1+col2, L-shaped with rounded notch */}
             <div
@@ -293,52 +345,30 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
               {gridItems[2].photo && (
                 <Image src={gridItems[2].photo} alt={gridItems[2].tag} fill className="object-cover object-top" />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <span className="absolute bottom-3 left-4 text-white font-black text-xs md:text-sm uppercase tracking-wide drop-shadow">
-                FOLLOW US: @FATRAP.CO
-              </span>
+              {/* Footer overlay — single translucent rectangle with 3 columns inside */}
+              <div className="absolute bottom-3 left-3 right-3 bg-neutral-700/80 backdrop-blur-sm px-4 py-2 rounded-md flex items-center justify-between gap-4 text-white text-[10px] md:text-[11px] leading-tight z-[6]">
+                <div className="flex flex-col">
+                  <span className="font-semibold uppercase tracking-wide">FATRAP BRAND</span>
+                  <span className="text-white/70">created by FSANCHEZ.CO</span>
+                </div>
+                <div className="hidden md:flex flex-col items-center text-center">
+                  <span className="font-semibold">We don&apos;t gatekeep</span>
+                  <span className="text-white/70">2026 © All rights are not reserved</span>
+                </div>
+                <div className="flex flex-col items-end text-right">
+                  <span className="font-semibold">Follow us on instagram</span>
+                  <span className="text-white/70">instagram.com/fatrap.co</span>
+                </div>
+              </div>
 
-              {/* Notch overlay — covers top-right where #CONTRIBUTE sits */}
+              {/* Notch overlay — covers top-right where Contribute sits. Clean L-shape, no scoops. */}
               <div
-                className="absolute bg-[#0a0a0a] z-[5] rounded-bl-2xl"
+                className="absolute bg-[#0a0a0a] z-[5] rounded-bl-xl"
                 style={{
                   top: 0,
                   right: 0,
                   width: 'calc(50% + 4px)',
                   height: clipNotch,
-                }}
-              />
-              {/* Inverse radius scoop — bottom-left of notch */}
-              <div
-                className="absolute z-[5]"
-                style={{
-                  top: clipNotch,
-                  right: 'calc(50% + 4px - 16px)',
-                  width: 16,
-                  height: 16,
-                  background: 'radial-gradient(circle at 100% 0%, transparent 16px, #0a0a0a 16.5px)',
-                }}
-              />
-              {/* Inverse radius scoop — top-left of notch (where vertical edge meets card top) */}
-              <div
-                className="absolute z-[5]"
-                style={{
-                  top: 0,
-                  right: 'calc(50% + 4px)',
-                  width: 16,
-                  height: 16,
-                  background: 'radial-gradient(circle at 100% 100%, transparent 16px, #0a0a0a 16.5px)',
-                }}
-              />
-              {/* Inverse radius scoop — bottom-right of notch (where notch meets card right edge) */}
-              <div
-                className="absolute z-[5]"
-                style={{
-                  top: clipNotch,
-                  right: 0,
-                  width: 16,
-                  height: 16,
-                  background: 'radial-gradient(circle at 0% 100%, transparent 16px, #0a0a0a 16.5px)',
                 }}
               />
             </div>
@@ -351,7 +381,7 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
       ══════════════════════════════════════════ */}
       <div className="relative z-10 hidden md:flex flex-1 h-full relative">
 
-        {/* Photo — clipped to rounded-2xl */}
+        {/* Photo — full rectangle, contact button overlays on top */}
         <div ref={heroRef} className="absolute top-8 md:top-10 bottom-8 md:bottom-10 left-0 right-8 md:right-10 rounded-2xl overflow-hidden">
           {HERO_PHOTO ? (
             <Image
@@ -368,41 +398,10 @@ export default function HomePage({ onNavigate, onMakeItYours }: HomePageProps) {
               </span>
             </div>
           )}
-
-          {/* Notch: masks the top-right corner so the photo doesn't show behind the button */}
-          <div
-            data-notch
-            className="absolute top-0 right-0 bg-[#0a0a0a] rounded-bl-[16px] z-[5]"
-            style={{ width: 230, height: 62 }}
-          />
-          {/* Inverse radius scoop — left side of notch */}
-          <div
-            data-notch
-            className="absolute z-[5]"
-            style={{
-              top: 0,
-              right: 230,
-              width: 16,
-              height: 16,
-              background: 'radial-gradient(circle at 0% 100%, transparent 16px, #0a0a0a 16.5px)',
-            }}
-          />
-          {/* Inverse radius scoop — bottom-right of notch */}
-          <div
-            data-notch
-            className="absolute z-[5]"
-            style={{
-              top: 62,
-              right: 0,
-              width: 16,
-              height: 16,
-              background: 'radial-gradient(circle at 0% 100%, transparent 16px, #0a0a0a 16.5px)',
-            }}
-          />
         </div>
 
-        {/* Contact button — aligned to top-right of the hero image */}
-        <div ref={contactRef} className="absolute top-10 right-10 z-10">
+        {/* Contact button — overlays on top of the hero photo */}
+        <div ref={contactRef} className="absolute top-10 right-10 z-20">
           {/* Desktop: Gooey liquid button */}
           <div className="hidden md:block">
             <GooeyContactButton onClick={() => onNavigate('/contact')} />
