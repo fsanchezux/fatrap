@@ -48,7 +48,7 @@ export default function Explorer({ tree, open, onClose }: ExplorerProps) {
   const bgRef = useRef<HTMLDivElement>(null)
   const sidebarRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
-  const closeBtnRef = useRef<HTMLButtonElement>(null)
+  const closeBtnRef = useRef<HTMLDivElement>(null)
 
   // Flatten all leaves for quick lookup + default selection
   const allLeaves = useMemo(() => {
@@ -218,18 +218,6 @@ export default function Explorer({ tree, open, onClose }: ExplorerProps) {
         <div className="absolute inset-0 bg-black/45" />
       </div>
 
-      {/* Close button */}
-      <button
-        ref={closeBtnRef}
-        onClick={onClose}
-        aria-label="Cerrar"
-        className="absolute top-5 right-5 z-30 w-9 h-9 rounded-full bg-white/15 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/25 transition-colors"
-      >
-        <svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <path d="M1 1l10 10M11 1L1 11" />
-        </svg>
-      </button>
-
       {/* ── SIDEBAR — transparent, sections like original ── */}
       <aside
         ref={sidebarRef}
@@ -278,6 +266,24 @@ export default function Explorer({ tree, open, onClose }: ExplorerProps) {
           ref={panelRef}
           className="relative w-full h-full bg-white rounded-2xl shadow-2xl overflow-hidden"
         >
+          {/* macOS-style traffic lights — top-left */}
+          <div
+            ref={closeBtnRef}
+            className="absolute top-4 left-4 z-30 flex items-center gap-2"
+          >
+            <button
+              onClick={onClose}
+              aria-label="Cerrar"
+              className="group w-3.5 h-3.5 rounded-full bg-[#FF5F57] hover:brightness-95 transition-all flex items-center justify-center"
+            >
+              <svg width="7" height="7" viewBox="0 0 8 8" className="opacity-0 group-hover:opacity-80 transition-opacity">
+                <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="#4d0000" strokeWidth="1.2" strokeLinecap="round" />
+              </svg>
+            </button>
+            <span className="w-3.5 h-3.5 rounded-full bg-[#FEBC2E]" aria-hidden />
+            <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: '#c3c491' }} aria-hidden />
+          </div>
+
           {/* Folder drop zone — top-right inside the panel */}
           <div className="absolute top-5 right-5 z-20 flex flex-col items-end gap-2">
             <div
