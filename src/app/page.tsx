@@ -9,6 +9,7 @@ import ContactForm from '@/components/ContactForm'
 import DownloadGrid from '@/components/DownloadGrid'
 import HomePage from '@/components/HomePage'
 import DIYRecommendations from '@/components/DIYRecommendations'
+import Explorer, { ExplorerSection } from '@/components/Explorer'
 
 interface SidebarOption {
   id: number
@@ -140,6 +141,54 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [miy, setMiy] = useState<'idle' | 'in' | 'out'>('idle')
+  const [explorerOpen, setExplorerOpen] = useState(false)
+
+  // Tree structure for the Explorer (mirrors original sidebar layout)
+  const explorerTree: ExplorerSection[] = [
+    {
+      label: 'Print files',
+      groups: [
+        {
+          id: 'stickers',
+          label: 'Stickers',
+          icon: 'sticker',
+          leaves: [
+            {
+              id: 'stickers-print',
+              label: 'Print files',
+              icon: 'sticker',
+              files: stickerPrintFiles.map(f => ({ id: `sp-${f.id}`, name: f.name, url: f.thumbnail || '', thumbnail: f.thumbnail })),
+            },
+            {
+              id: 'stickers-edit',
+              label: 'Edit',
+              icon: 'palette',
+              files: stickerEditFiles.map((f, i) => ({ id: `se-${i}`, name: f.name, url: f.url, thumbnail: null })),
+            },
+          ],
+        },
+        {
+          id: 'dtf',
+          label: 'DTF',
+          icon: 'dtf',
+          leaves: [
+            {
+              id: 'dtf-print',
+              label: 'Print files',
+              icon: 'dtf',
+              files: dtfPrintFiles.map(f => ({ id: `dp-${f.id}`, name: f.name, url: f.thumbnail || '', thumbnail: f.thumbnail })),
+            },
+            {
+              id: 'dtf-edit',
+              label: 'Edit',
+              icon: 'palette',
+              files: dtfEditFiles.map((f, i) => ({ id: `de-${i}`, name: f.name, url: f.url, thumbnail: null })),
+            },
+          ],
+        },
+      ],
+    },
+  ]
 
   const handleMakeItYours = () => {
     setMiy('in')
@@ -224,7 +273,7 @@ export default function Home() {
   // Decide what to render in the main area
   const renderMain = () => {
     if (!activePath) {
-      return <HomePage onNavigate={handleNavigate} onMakeItYours={handleMakeItYours} />
+      return <HomePage onNavigate={handleNavigate} onOpenExplorer={() => setExplorerOpen(true)} onMakeItYours={handleMakeItYours} />
     }
     if (activePath === '/contact') {
       return <ContactForm />
@@ -309,6 +358,13 @@ export default function Home() {
           <DIYRecommendations />
         </div>
       )}
+
+      {/* ── Explorer overlay — animates open/close on top of HomePage ── */}
+      <Explorer
+        tree={explorerTree}
+        open={explorerOpen}
+        onClose={() => setExplorerOpen(false)}
+      />
     </WindowFrame>
   )
 }

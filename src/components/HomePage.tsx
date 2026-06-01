@@ -7,6 +7,7 @@ import GooeyContactButton from './GooeyContactButton'
 
 interface HomePageProps {
   onNavigate: (path: string) => void
+  onOpenExplorer: () => void
   onMakeItYours: () => void
 }
 
@@ -47,7 +48,7 @@ const SCATTER: Record<string, { x: number; y: number; rotation: number; scale: n
   contact: { x: -120, y: 180,  rotation: -10, scale: 1.05, z: 7 },
 }
 
-export default function HomePage({ onNavigate }: HomePageProps) {
+export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const bgRef = useRef<HTMLDivElement>(null)
   const brandRef = useRef<HTMLDivElement>(null)
@@ -57,7 +58,6 @@ export default function HomePage({ onNavigate }: HomePageProps) {
   const heroRef = useRef<HTMLDivElement>(null)
   const contactRef = useRef<HTMLDivElement>(null)
   const scrollCtaRef = useRef<HTMLDivElement>(null)
-  const progressRef = useRef(0) // 0 = scattered, 1 = ordered
   const touchStartY = useRef(0)
   const [clipNotch, setClipNotch] = useState('30%')
 
@@ -104,15 +104,17 @@ export default function HomePage({ onNavigate }: HomePageProps) {
 
     const allCards = Object.values(els).filter(Boolean) as HTMLElement[]
 
-    // --- Phase 1: Set scattered initial state ---
+    // --- Phase 1: Pre-entry — cards sit slightly below + smaller + invisible ---
+    const ENTRY_Y_OFFSET = 40
+    const ENTRY_SCALE_FACTOR = 0.85
     for (const [key, el] of Object.entries(els)) {
       if (!el) continue
       const s = SCATTER[key]
       gsap.set(el, {
         x: s.x,
-        y: s.y,
+        y: s.y + ENTRY_Y_OFFSET,
         rotation: s.rotation,
-        scale: s.scale,
+        scale: s.scale * ENTRY_SCALE_FACTOR,
         zIndex: s.z,
         opacity: 0,
       })
@@ -124,104 +126,148 @@ export default function HomePage({ onNavigate }: HomePageProps) {
     const notchEls = container.querySelectorAll('[data-notch]')
     gsap.set(notchEls, { opacity: 0 })
 
-    // --- Intro: fade cards in with stagger, then slowly fade in scroll CTA ---
+    // --- Intro: each card rises + scales up + fades into its scatter slot ---
     const scrollCta = scrollCtaRef.current
     if (scrollCta) gsap.set(scrollCta, { opacity: 0 })
 
-    const introTl = gsap.timeline({ delay: 0.15 })
-    introTl.to(allCards, {
-      opacity: 1,
-      duration: 0.6,
-      stagger: 0.08,
-      ease: 'power2.out',
-    })
-    let ctaTween: gsap.core.Tween | null = null
-    if (scrollCta) {
-      // Long, slow fade-in after intro completes, only if user hasn't scrolled
-      ctaTween = gsap.to(scrollCta, {
-        opacity: 1,
-        duration: 4,
-        delay: 1.5,
-        ease: 'power1.inOut',
-      })
-    }
-
-    // --- Cascade drift — pieces drift up/down continuously while scattered,
-    // each desynced so it feels like a live mood-board. ---
     const breathTls: gsap.core.Tween[] = []
+    let ctaTween: gsap.core.Tween | null = null
+
+    const introTl = gsap.timeline({ delay: 0.2 })
     Object.entries(els).forEach(([key, el], i) => {
       if (!el) return
-      const startY = SCATTER[key].y
-      const amplitude = 50 + (i % 3) * 20
-      const t = gsap.to(el, {
-        y: startY + amplitude,
-        duration: 4 + (i % 4) * 0.7,
-        ease: 'sine.inOut',
-        repeat: -1,
-        yoyo: true,
-        delay: -i * 0.9,
-      })
-      breathTls.push(t)
+      const s = SCATTER[key]
+      introTl.to(el, {
+        y: s.y,
+        scale: s.scale,
+        opacity: 1,
+        duration: 1.0,
+        ease: 'power3.out',
+      }, i * 0.1)
     })
 
-    // --- Progress-driven animation ---
-    let breathKilled = false
-    const applyProgress = (p: number) => {
-      // Kill breathing + cancel CTA fade-in and hide it on first scroll
-      if (!breathKilled && p > 0) {
-        breathTls.forEach(t => t.kill())
-        breathKilled = true
-        if (ctaTween) ctaTween.kill()
-        if (scrollCta) {
-          gsap.to(scrollCta, { opacity: 0, duration: 0.4, ease: 'power2.out', overwrite: true })
-        }
+    // After intro finishes: kick off the very subtle breath drift + CTA fade-in
+    introTl.call(() => {
+      Object.entries(els).forEach(([key, el], i) => {
+        if (!el) return
+        const startY = SCATTER[key].y
+        const amplitude = 4 + (i % 3) * 1.5 // ultra-subtle (4-7px)
+        const t = gsap.to(el, {
+          y: startY + amplitude,
+          duration: 5.5 + (i % 4) * 0.6,
+          ease: 'sine.inOut',
+          repeat: -1,
+          yoyo: true,
+          delay: i * 0.4,
+        })
+        breathTls.push(t)
+      })
+
+      if (scrollCta) {
+        ctaTween = gsap.to(scrollCta, {
+          opacity: 1,
+          duration: 4,
+          delay: 0.5,
+          ease: 'power1.inOut',
+        })
       }
+    })
+
+    // --- Single-shot scroll animation ---
+    let ambientKilled = false
+    const killAmbient = () => {
+      if (ambientKilled) return
+      ambientKilled = true
+      introTl.kill()
+      breathTls.forEach(t => t.kill())
+      if (ctaTween) ctaTween.kill()
+      if (scrollCta) {
+        gsap.to(scrollCta, { opacity: 0, duration: 0.3, ease: 'power2.out', overwrite: true })
+      }
+    }
+
+    // Driver object animated 0 -> 1 -> 0; onUpdate writes transforms directly
+    // so it never fights GSAP's per-property tween table.
+    const driver = { p: 0 }
+    let direction: 'forward' | 'back' | 'idle' = 'idle'
+    let activeTween: gsap.core.Tween | null = null
+
+    const renderProgress = () => {
+      const p = driver.p
       for (const [key, el] of Object.entries(els)) {
         if (!el) continue
         const s = SCATTER[key]
-        gsap.to(el, {
+        gsap.set(el, {
           x: s.x * (1 - p),
           y: s.y * (1 - p),
           rotation: s.rotation * (1 - p),
           scale: s.scale + (1 - s.scale) * p,
-          duration: 0.5,
-          ease: 'power2.out',
-          overwrite: true,
         })
       }
-
-      // Notch elements
-      gsap.to(notchEls, {
-        opacity: p,
-        duration: 0.5,
-        ease: 'power2.out',
-        overwrite: true,
-      })
-
-      // Recalculate clip-path after cards move
-      setTimeout(updateClipNotch, 550)
+      if (notchEls.length) gsap.set(notchEls, { opacity: p })
     }
 
-    // --- Wheel (desktop) ---
+    const ANIM_DURATION = 1.4
+
+    const playForward = () => {
+      if (activeTween) activeTween.kill()
+      direction = 'forward'
+      killAmbient()
+      activeTween = gsap.to(driver, {
+        p: 1,
+        duration: ANIM_DURATION * (1 - driver.p),
+        ease: 'power3.inOut',
+        onUpdate: renderProgress,
+        onComplete: () => {
+          direction = 'idle'
+          activeTween = null
+          updateClipNotch()
+        },
+      })
+    }
+
+    const playBack = () => {
+      if (activeTween) activeTween.kill()
+      direction = 'back'
+      activeTween = gsap.to(driver, {
+        p: 0,
+        duration: ANIM_DURATION * driver.p,
+        ease: 'power3.inOut',
+        onUpdate: renderProgress,
+        onComplete: () => {
+          direction = 'idle'
+          activeTween = null
+          window.location.reload()
+        },
+      })
+    }
+
+    // --- Wheel (desktop) — single tick triggers the whole animation ---
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault()
-      const delta = e.deltaY / 800
-      progressRef.current = Math.max(0, Math.min(1, progressRef.current + delta))
-      applyProgress(progressRef.current)
+      if (direction !== 'idle') return
+      if (e.deltaY > 0 && driver.p < 1) {
+        playForward()
+      } else if (e.deltaY < 0 && driver.p >= 1) {
+        playBack()
+      }
     }
 
-    // --- Touch (mobile) ---
+    // --- Touch (mobile) — single swipe triggers the whole animation ---
     const handleTouchStart = (e: TouchEvent) => {
       touchStartY.current = e.touches[0].clientY
     }
 
     const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault()
-      const deltaY = touchStartY.current - e.touches[0].clientY
-      touchStartY.current = e.touches[0].clientY
-      const delta = deltaY / 400
-      progressRef.current = Math.max(0, Math.min(1, progressRef.current + delta))
-      applyProgress(progressRef.current)
+      if (direction !== 'idle') return
+      const dy = touchStartY.current - e.touches[0].clientY
+      if (Math.abs(dy) < 10) return
+      if (dy > 0 && driver.p < 1) {
+        playForward()
+      } else if (dy < 0 && driver.p >= 1) {
+        playBack()
+      }
     }
 
     container.addEventListener('wheel', handleWheel, { passive: false })
@@ -232,6 +278,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
       introTl.kill()
       if (ctaTween) ctaTween.kill()
       breathTls.forEach(t => t.kill())
+      if (activeTween) activeTween.kill()
       container.removeEventListener('wheel', handleWheel)
       container.removeEventListener('touchstart', handleTouchStart)
       container.removeEventListener('touchmove', handleTouchMove)
@@ -300,7 +347,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               ref={cell1Ref}
               className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity px-5 z-10 flex items-center"
               style={{ backgroundColor: '#c3c491', gridColumn: '1', gridRow: '1' }}
-              onClick={() => onNavigate(gridItems[0].path)}
+              onClick={onOpenExplorer}
             >
               <div className="flex items-center gap-4">
                 <span className="rounded-full bg-black flex-shrink-0" style={{ width: '1.25rem', height: '1.25rem' }} />
