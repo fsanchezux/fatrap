@@ -20,6 +20,8 @@ export interface ExplorerLeaf {
   label: string
   icon?: string
   files: ExplorerFile[]
+  /** Optional action: when defined, clicking the leaf runs this instead of selecting files. */
+  external?: () => void
 }
 
 export interface ExplorerGroup {
@@ -180,9 +182,9 @@ export default function Explorer({ tree, open, onClose }: ExplorerProps) {
   const renderLeaf = (leaf: ExplorerLeaf, indented = false) => (
     <li key={leaf.id}>
       <button
-        onClick={() => setActiveLeafId(leaf.id)}
+        onClick={() => leaf.external ? leaf.external() : setActiveLeafId(leaf.id)}
         className={`w-full ${indented ? 'pl-9 pr-3' : 'px-3'} py-1.5 flex items-center gap-2 text-sm rounded-md transition-colors ${
-          activeLeafId === leaf.id
+          activeLeafId === leaf.id && !leaf.external
             ? 'bg-white/20 text-white'
             : 'text-white/75 hover:bg-white/10 hover:text-white'
         }`}

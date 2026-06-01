@@ -188,6 +188,35 @@ export default function Home() {
         },
       ],
     },
+    {
+      label: 'Gallery',
+      leaves: [
+        { id: 'gallery-2018', label: '(2018) First steps', icon: 'gallery', files: [] },
+        { id: 'gallery-2023-caribu', label: '(2023) Fatrap x Caribu', icon: 'gallery', files: [] },
+        { id: 'gallery-2024-college', label: '(2024) Fatrap College', icon: 'gallery', files: [] },
+        { id: 'gallery-2024-santes', label: '(2024) Les Santes Olimpiques', icon: 'gallery', files: [] },
+        { id: 'gallery-2025-dsr', label: "(2025) Fatrap Don't Stay Relevant", icon: 'gallery', files: [] },
+        { id: 'gallery-2025-basics', label: '(2025) Fatrap Welcome to the basics', icon: 'gallery', files: [] },
+        { id: 'gallery-2025-court', label: '(2025) Fatrap x Court', icon: 'gallery', files: [] },
+        { id: 'gallery-2025-pa-esa', label: "(2025) Fatrap Pa' esa mierda ya no tengo tiempo", icon: 'gallery', files: [] },
+      ],
+    },
+    {
+      label: 'Contact us',
+      leaves: [
+        {
+          id: 'contact-us',
+          label: 'Contact us',
+          icon: 'mail',
+          files: [],
+          external: () => {
+            setExplorerOpen(false)
+            // Wait for the close animation, then navigate
+            setTimeout(() => handleNavigate('/contact'), 650)
+          },
+        },
+      ],
+    },
   ]
 
   const handleMakeItYours = () => {
