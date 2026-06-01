@@ -218,72 +218,74 @@ export default function Explorer({ tree, open, onClose }: ExplorerProps) {
         <div className="absolute inset-0 bg-black/45" />
       </div>
 
-      {/* ── SIDEBAR — transparent, sections like original ── */}
-      <aside
-        ref={sidebarRef}
-        className="relative z-10 w-60 h-full overflow-y-auto px-2 py-6 text-white"
-        style={{ backgroundColor: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(8px)' }}
-      >
-        {tree.map((section, i) => (
-          <div key={i} className="mb-4">
-            <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/55">
-              {section.label}
-            </div>
-            <ul className="mt-1 space-y-0.5">
-              {section.groups?.map(group => {
-                const isOpen = expandedGroups[group.id]
-                return (
-                  <li key={group.id}>
-                    <button
-                      onClick={() => toggleGroup(group.id)}
-                      className="w-full px-3 py-1.5 flex items-center gap-2 text-sm text-white/85 hover:bg-white/10 hover:text-white rounded-md transition-colors"
-                    >
-                      <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
-                        {group.icon ? getIconByName(group.icon) : null}
-                      </span>
-                      <span className="flex-1 truncate text-left">{group.label}</span>
-                      <span className="text-white/50">
-                        {isOpen ? <ChevronDownIcon /> : <ChevronRightIcon />}
-                      </span>
-                    </button>
-                    {isOpen && (
-                      <ul className="mt-0.5 space-y-0.5">
-                        {group.leaves.map(leaf => renderLeaf(leaf, true))}
-                      </ul>
-                    )}
-                  </li>
-                )
-              })}
-              {section.leaves?.map(leaf => renderLeaf(leaf))}
-            </ul>
-          </div>
-        ))}
-      </aside>
-
-      {/* ── WHITE PANEL — files grid + folder drop zone in top-right ── */}
-      <main className="relative z-10 flex-1 h-full p-4 md:p-6">
+      {/* ── UNIFIED CARD: sidebar (left) + white panel (right) ── */}
+      <div className="relative z-10 w-full h-full p-4 md:p-6">
         <div
           ref={panelRef}
-          className="relative w-full h-full bg-white rounded-2xl shadow-2xl overflow-hidden"
+          className="relative w-full h-full rounded-2xl shadow-2xl overflow-hidden flex"
         >
-          {/* macOS-style traffic lights — top-left */}
-          <div
-            ref={closeBtnRef}
-            className="absolute top-4 left-4 z-30 flex items-center gap-2"
+          {/* SIDEBAR — semi-opaque, joined to white panel */}
+          <aside
+            ref={sidebarRef}
+            className="relative w-60 h-full overflow-y-auto pt-12 pb-6 px-2 text-white shrink-0"
+            style={{ backgroundColor: 'rgba(30,30,30,0.55)', backdropFilter: 'blur(10px)' }}
           >
-            <button
-              onClick={onClose}
-              aria-label="Cerrar"
-              className="group w-3.5 h-3.5 rounded-full bg-[#FF5F57] hover:brightness-95 transition-all flex items-center justify-center"
+            {/* macOS-style traffic lights — top-left of sidebar */}
+            <div
+              ref={closeBtnRef}
+              className="absolute top-4 left-4 z-30 flex items-center gap-2"
             >
-              <svg width="7" height="7" viewBox="0 0 8 8" className="opacity-0 group-hover:opacity-80 transition-opacity">
-                <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="#4d0000" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-            </button>
-            <span className="w-3.5 h-3.5 rounded-full bg-[#FEBC2E]" aria-hidden />
-            <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: '#c3c491' }} aria-hidden />
-          </div>
+              <button
+                onClick={onClose}
+                aria-label="Cerrar"
+                className="group w-3.5 h-3.5 rounded-full bg-[#FF5F57] hover:brightness-95 transition-all flex items-center justify-center"
+              >
+                <svg width="7" height="7" viewBox="0 0 8 8" className="opacity-0 group-hover:opacity-80 transition-opacity">
+                  <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="#4d0000" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+              </button>
+              <span className="w-3.5 h-3.5 rounded-full bg-[#FEBC2E]" aria-hidden />
+              <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: '#c3c491' }} aria-hidden />
+            </div>
 
+            {tree.map((section, i) => (
+              <div key={i} className="mb-4">
+                <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/55">
+                  {section.label}
+                </div>
+                <ul className="mt-1 space-y-0.5">
+                  {section.groups?.map(group => {
+                    const isOpen = expandedGroups[group.id]
+                    return (
+                      <li key={group.id}>
+                        <button
+                          onClick={() => toggleGroup(group.id)}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 text-sm text-white/85 hover:bg-white/10 hover:text-white rounded-md transition-colors"
+                        >
+                          <span className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                            {group.icon ? getIconByName(group.icon) : null}
+                          </span>
+                          <span className="flex-1 truncate text-left">{group.label}</span>
+                          <span className="text-white/50">
+                            {isOpen ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                          </span>
+                        </button>
+                        {isOpen && (
+                          <ul className="mt-0.5 space-y-0.5">
+                            {group.leaves.map(leaf => renderLeaf(leaf, true))}
+                          </ul>
+                        )}
+                      </li>
+                    )
+                  })}
+                  {section.leaves?.map(leaf => renderLeaf(leaf))}
+                </ul>
+              </div>
+            ))}
+          </aside>
+
+          {/* WHITE PANEL — files grid + folder drop zone in top-right */}
+          <div className="relative flex-1 h-full bg-white overflow-hidden">
           {/* Folder drop zone — top-right inside the panel */}
           <div className="absolute top-5 right-5 z-20 flex flex-col items-end gap-2">
             <div
@@ -401,8 +403,9 @@ export default function Explorer({ tree, open, onClose }: ExplorerProps) {
               <div className="text-gray-400 text-sm">No hay archivos en esta categoría.</div>
             )}
           </div>
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   )
 }
