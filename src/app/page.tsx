@@ -138,7 +138,6 @@ export default function Home() {
   const [activePath, setActivePath] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [miy, setMiy] = useState<'idle' | 'in' | 'out'>('idle')
 
@@ -173,8 +172,6 @@ export default function Home() {
         }
       } catch (error) {
         console.log('Using default data (API not available):', error)
-      } finally {
-        setIsLoading(false)
       }
     }
 
@@ -272,16 +269,6 @@ export default function Home() {
         <Toolbar title={getTitle()} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
         <FileGrid files={filteredFiles} viewMode={viewMode} />
       </>
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <WindowFrame>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        </div>
-      </WindowFrame>
     )
   }
 
