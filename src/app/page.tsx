@@ -174,7 +174,7 @@ export default function Home() {
 
   return (
     <WindowFrame>
-      <main className="relative flex-1 flex flex-col bg-white overflow-hidden">
+      <main className="relative flex-1 flex flex-col bg-[#0a0a0a] overflow-hidden">
         <HomePage
           onNavigate={() => { /* legacy noop — kept to satisfy HomePage prop */ }}
           onOpenExplorer={openExplorer}
