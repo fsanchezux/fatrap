@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useEffect, useState, useCallback } from 'react'
+import React, { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
 import gsap from 'gsap'
 import GooeyContactButton from './GooeyContactButton'
@@ -60,6 +60,57 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
   const scrollCtaRef = useRef<HTMLDivElement>(null)
   const touchStartY = useRef(0)
   const [clipNotch, setClipNotch] = useState('30%')
+  const [imagesReady, setImagesReady] = useState(false)
+
+  // ── Images that must be fully loaded before the intro fade-in runs ──
+  const IMAGES_TO_PRELOAD = [
+    '/images/logo-wordmark-compressed.png',
+    '/images/contribute.png',
+    '/images/ivangbbb-fatrap-30.png',
+    '/images/hero.png',
+  ]
+
+  // Pre-paint hide: set every card to opacity 0 + scatter position synchronously,
+  // BEFORE the browser ever paints them. Prevents any "pop in" before images load.
+  useLayoutEffect(() => {
+    const refs: Record<string, HTMLElement | null> = {
+      brand: brandRef.current,
+      cell1: cell1Ref.current,
+      cell2: cell2Ref.current,
+      cell3: cell3Ref.current,
+      hero: heroRef.current,
+      contact: contactRef.current,
+    }
+    for (const [key, el] of Object.entries(refs)) {
+      if (!el) continue
+      const s = SCATTER[key]
+      gsap.set(el, {
+        x: s.x,
+        y: s.y + 40,
+        rotation: s.rotation,
+        scale: s.scale * 0.85,
+        zIndex: s.z,
+        opacity: 0,
+      })
+    }
+    if (scrollCtaRef.current) gsap.set(scrollCtaRef.current, { opacity: 0 })
+  }, [])
+
+  // Preload all hero/grid images. When every one resolves we unlock the intro.
+  useEffect(() => {
+    let cancelled = false
+    Promise.all(
+      IMAGES_TO_PRELOAD.map(src => new Promise<void>(resolve => {
+        const img = new window.Image()
+        img.onload = () => resolve()
+        img.onerror = () => resolve() // don't block on a 404
+        img.src = src
+      }))
+    ).then(() => {
+      if (!cancelled) setImagesReady(true)
+    })
+    return () => { cancelled = true }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Recalculate clip-path notch based on actual element positions
   const updateClipNotch = useCallback(() => {
@@ -89,6 +140,9 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
   }, [updateClipNotch])
 
   useEffect(() => {
+    // Hold the intro until all preload images have resolved
+    if (!imagesReady) return
+
     const els: Record<string, HTMLElement | null> = {
       brand: brandRef.current,
       cell1: cell1Ref.current,
@@ -104,7 +158,8 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
 
     const allCards = Object.values(els).filter(Boolean) as HTMLElement[]
 
-    // --- Phase 1: Pre-entry — cards sit slightly below + smaller + invisible ---
+    // (useLayoutEffect above already set initial scatter+opacity 0 pre-paint.
+    // Re-apply here in case the refs weren't ready then.)
     const ENTRY_Y_OFFSET = 40
     const ENTRY_SCALE_FACTOR = 0.85
     for (const [key, el] of Object.entries(els)) {
@@ -229,33 +284,43 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
     const playBack = () => {
       if (activeTween) activeTween.kill()
       direction = 'back'
-      // Stop ambient tweens cleanly (without their tiny default fade-outs interfering)
-      introTl.kill()
-      breathTls.forEach(t => t.kill())
-      if (ctaTween) ctaTween.kill()
 
-      // Long, deliberate fade-out → reload → intro fades back in on the fresh mount
-      const FADE_OUT_DURATION = 1.6
-      const fadeOutTl = gsap.timeline({
+      // Phase 1: tween the cards smoothly back to the initial scatter state.
+      const phase1 = gsap.to(driver, {
+        p: 0,
+        duration: ANIM_DURATION * driver.p,
+        ease: 'power3.inOut',
+        onUpdate: renderProgress,
         onComplete: () => {
-          window.location.reload()
+          // Phase 2: kill ambient and fade everything out, then hard-reload.
+          // The new mount keeps cards invisible until images preload, then runs intro.
+          introTl.kill()
+          breathTls.forEach(t => t.kill())
+          if (ctaTween) ctaTween.kill()
+
+          const FADE_OUT_DURATION = 1.2
+          const fadeOutTl = gsap.timeline({
+            onComplete: () => {
+              window.location.reload()
+            },
+          })
+          fadeOutTl.to(allCards, {
+            opacity: 0,
+            duration: FADE_OUT_DURATION,
+            stagger: 0.05,
+            ease: 'power2.inOut',
+          }, 0)
+          if (scrollCta) {
+            fadeOutTl.to(scrollCta, {
+              opacity: 0,
+              duration: FADE_OUT_DURATION * 0.6,
+              ease: 'power2.inOut',
+            }, 0)
+          }
+          activeTween = fadeOutTl as unknown as gsap.core.Tween
         },
       })
-      fadeOutTl.to(allCards, {
-        opacity: 0,
-        duration: FADE_OUT_DURATION,
-        stagger: 0.06,
-        ease: 'power2.inOut',
-      }, 0)
-      if (scrollCta) {
-        fadeOutTl.to(scrollCta, {
-          opacity: 0,
-          duration: FADE_OUT_DURATION * 0.6,
-          ease: 'power2.inOut',
-        }, 0)
-      }
-      // Track this as the active tween so direction stays 'back' until reload fires
-      activeTween = fadeOutTl as unknown as gsap.core.Tween
+      activeTween = phase1
     }
 
     // --- Wheel (desktop) — single tick triggers the whole animation ---
@@ -299,7 +364,7 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
       container.removeEventListener('touchstart', handleTouchStart)
       container.removeEventListener('touchmove', handleTouchMove)
     }
-  }, [updateClipNotch])
+  }, [updateClipNotch, imagesReady])
 
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden flex">

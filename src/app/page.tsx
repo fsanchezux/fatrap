@@ -4,7 +4,21 @@ import { useState } from 'react'
 import WindowFrame from '@/components/WindowFrame'
 import ContactForm from '@/components/ContactForm'
 import HomePage from '@/components/HomePage'
-import Explorer, { ExplorerSection } from '@/components/Explorer'
+import Explorer, { ExplorerSection, ExplorerFile } from '@/components/Explorer'
+import cloudinaryUrls from '../../scripts/cloudinary-urls.json'
+
+// Group gallery files by their galleryPath so we can inject them into each leaf below
+const galleryByPath: Record<string, ExplorerFile[]> = {}
+for (const f of cloudinaryUrls as Array<{ name: string; thumbnail: string; galleryPath: string }>) {
+  if (!galleryByPath[f.galleryPath]) galleryByPath[f.galleryPath] = []
+  const idx = galleryByPath[f.galleryPath].length
+  galleryByPath[f.galleryPath].push({
+    id: `g-${f.galleryPath}-${idx}`,
+    name: f.name,
+    url: f.thumbnail,
+    thumbnail: f.thumbnail,
+  })
+}
 
 interface FileItem {
   id: number
@@ -134,14 +148,14 @@ export default function Home() {
     {
       label: 'Gallery',
       leaves: [
-        { id: 'gallery-2018', label: '(2018) First steps', icon: 'gallery', files: [] },
-        { id: 'gallery-2023-caribu', label: '(2023) Fatrap x Caribu', icon: 'gallery', files: [] },
-        { id: 'gallery-2024-college', label: '(2024) Fatrap College', icon: 'gallery', files: [] },
-        { id: 'gallery-2024-santes', label: '(2024) Les Santes Olimpiques', icon: 'gallery', files: [] },
-        { id: 'gallery-2025-dsr', label: "(2025) Fatrap Don't Stay Relevant", icon: 'gallery', files: [] },
-        { id: 'gallery-2025-basics', label: '(2025) Fatrap Welcome to the basics', icon: 'gallery', files: [] },
-        { id: 'gallery-2025-court', label: '(2025) Fatrap x Court', icon: 'gallery', files: [] },
-        { id: 'gallery-2025-pa-esa', label: "(2025) Fatrap Pa' esa mierda ya no tengo tiempo", icon: 'gallery', files: [] },
+        { id: 'gallery-2018', label: '(2018) First steps', icon: 'gallery', files: galleryByPath['/gallery/2018-first-steps'] || [] },
+        { id: 'gallery-2023-caribu', label: '(2023) Fatrap x Caribu', icon: 'gallery', files: galleryByPath['/gallery/2023-fatrap-caribu'] || [] },
+        { id: 'gallery-2024-college', label: '(2024) Fatrap College', icon: 'gallery', files: galleryByPath['/gallery/2024-fatrap-college'] || [] },
+        { id: 'gallery-2024-santes', label: '(2024) Les Santes Olimpiques', icon: 'gallery', files: galleryByPath['/gallery/2024-les-santes-olimpiques'] || [] },
+        { id: 'gallery-2025-dsr', label: "(2025) Fatrap Don't Stay Relevant", icon: 'gallery', files: galleryByPath['/gallery/2025-dont-stay-relevant'] || [] },
+        { id: 'gallery-2025-basics', label: '(2025) Fatrap Welcome to the basics', icon: 'gallery', files: galleryByPath['/gallery/2025-welcome-to-basics'] || [] },
+        { id: 'gallery-2025-court', label: '(2025) Fatrap x Court', icon: 'gallery', files: galleryByPath['/gallery/2025-fatrap-court'] || [] },
+        { id: 'gallery-2025-pa-esa', label: "(2025) Fatrap Pa' esa mierda ya no tengo tiempo", icon: 'gallery', files: galleryByPath['/gallery/2025-pa-esa-mierda'] || [] },
       ],
     },
     {

@@ -308,6 +308,29 @@ export default function Explorer({ tree, open, onClose, initialLeafId }: Explore
             </button>
           )}
 
+          {/* macOS-style traffic lights — top-left of unified card, FIXED (don't scroll with sidebar) */}
+          <div
+            ref={closeBtnRef}
+            className="absolute top-4 left-4 z-40 flex items-center gap-2"
+          >
+            <button
+              onClick={() => closeWith('dismiss')}
+              aria-label="Cerrar"
+              className="w-3.5 h-3.5 rounded-full bg-[#FF5F57] hover:brightness-95 transition-all"
+            />
+            <button
+              onClick={() => closeWith('minimize')}
+              aria-label="Minimizar"
+              className="w-3.5 h-3.5 rounded-full bg-[#FEBC2E] hover:brightness-95 transition-all"
+            />
+            <button
+              onClick={() => closeWith('maximize')}
+              aria-label="Maximizar"
+              className="w-3.5 h-3.5 rounded-full hover:brightness-95 transition-all"
+              style={{ backgroundColor: '#c3c491' }}
+            />
+          </div>
+
           {/* SIDEBAR — semi-opaque, joined to white panel (mobile: slide-in drawer) */}
           <aside
             ref={sidebarRef}
@@ -316,29 +339,6 @@ export default function Explorer({ tree, open, onClose, initialLeafId }: Explore
             }`}
             style={{ backgroundColor: 'rgba(30,30,30,0.55)', backdropFilter: 'blur(10px)' }}
           >
-            {/* macOS-style traffic lights — top-left of sidebar. Each closes with its own animation. */}
-            <div
-              ref={closeBtnRef}
-              className="absolute top-4 left-4 z-30 flex items-center gap-2"
-            >
-              <button
-                onClick={() => closeWith('dismiss')}
-                aria-label="Cerrar"
-                className="w-3.5 h-3.5 rounded-full bg-[#FF5F57] hover:brightness-95 transition-all"
-              />
-              <button
-                onClick={() => closeWith('minimize')}
-                aria-label="Minimizar"
-                className="w-3.5 h-3.5 rounded-full bg-[#FEBC2E] hover:brightness-95 transition-all"
-              />
-              <button
-                onClick={() => closeWith('maximize')}
-                aria-label="Maximizar"
-                className="w-3.5 h-3.5 rounded-full hover:brightness-95 transition-all"
-                style={{ backgroundColor: '#c3c491' }}
-              />
-            </div>
-
             {/* Mobile-only close-drawer button */}
             {isMobile && (
               <button
