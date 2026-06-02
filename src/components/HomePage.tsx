@@ -133,7 +133,7 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
     const breathTls: gsap.core.Tween[] = []
     let ctaTween: gsap.core.Tween | null = null
 
-    const introTl = gsap.timeline({ delay: 0.2 })
+    const introTl = gsap.timeline({ delay: 0.25 })
     Object.entries(els).forEach(([key, el], i) => {
       if (!el) return
       const s = SCATTER[key]
@@ -141,9 +141,9 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
         y: s.y,
         scale: s.scale,
         opacity: 1,
-        duration: 1.0,
+        duration: 1.5,
         ease: 'power3.out',
-      }, i * 0.1)
+      }, i * 0.14)
     })
 
     // After intro finishes: kick off the very subtle breath drift + CTA fade-in
@@ -229,17 +229,33 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
     const playBack = () => {
       if (activeTween) activeTween.kill()
       direction = 'back'
-      activeTween = gsap.to(driver, {
-        p: 0,
-        duration: ANIM_DURATION * driver.p,
-        ease: 'power3.inOut',
-        onUpdate: renderProgress,
+      // Stop ambient tweens cleanly (without their tiny default fade-outs interfering)
+      introTl.kill()
+      breathTls.forEach(t => t.kill())
+      if (ctaTween) ctaTween.kill()
+
+      // Long, deliberate fade-out → reload → intro fades back in on the fresh mount
+      const FADE_OUT_DURATION = 1.6
+      const fadeOutTl = gsap.timeline({
         onComplete: () => {
-          direction = 'idle'
-          activeTween = null
           window.location.reload()
         },
       })
+      fadeOutTl.to(allCards, {
+        opacity: 0,
+        duration: FADE_OUT_DURATION,
+        stagger: 0.06,
+        ease: 'power2.inOut',
+      }, 0)
+      if (scrollCta) {
+        fadeOutTl.to(scrollCta, {
+          opacity: 0,
+          duration: FADE_OUT_DURATION * 0.6,
+          ease: 'power2.inOut',
+        }, 0)
+      }
+      // Track this as the active tween so direction stays 'back' until reload fires
+      activeTween = fadeOutTl as unknown as gsap.core.Tween
     }
 
     // --- Wheel (desktop) — single tick triggers the whole animation ---
