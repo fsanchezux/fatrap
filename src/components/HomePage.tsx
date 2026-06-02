@@ -389,7 +389,7 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
       <div className="relative z-10 w-full md:w-[45%] h-full flex flex-col p-8 md:py-10 md:pl-10 md:pr-2 shrink-0 overflow-hidden">
 
         {/* Brand block */}
-        <div ref={brandRef} className="relative flex flex-col bg-gray-100 rounded-2xl p-5 md:p-6">
+        <div ref={brandRef} className="relative flex flex-col bg-gray-100 rounded-2xl p-5 md:p-6 opacity-0">
 
           {/* FATRAP logotype + 01 */}
           <div className="flex items-start justify-between mb-2">
@@ -426,7 +426,7 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
             {/* Explore our files — row1, col1 (compact, minimal pill-style) */}
             <div
               ref={cell1Ref}
-              className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity px-5 z-10 flex items-center"
+              className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity px-5 z-10 flex items-center opacity-0"
               style={{ backgroundColor: '#c3c491', gridColumn: '1', gridRow: '1' }}
               onClick={() => onOpenExplorer()}
             >
@@ -441,7 +441,7 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
             {/* Contribute — row1+row2, col2 (with grey translucent pill bottom-right) */}
             <div
               ref={cell2Ref}
-              className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity z-10"
+              className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity z-10 opacity-0"
               style={{ gridColumn: '2', gridRow: '1 / 4', height: 'clamp(8rem, 18vw, 14rem)' }}
               onClick={() => onOpenExplorer('contact-us')}
             >
@@ -457,7 +457,7 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
             {/* @FATRAP.CO — row2+row3, col1+col2, L-shaped with rounded notch */}
             <div
               ref={cell3Ref as React.RefObject<HTMLDivElement>}
-              className="relative overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity rounded-xl"
+              className="relative overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity rounded-xl opacity-0"
               style={{
                 gridColumn: '1 / 3',
                 gridRow: '2 / 5',
@@ -510,7 +510,7 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
       <div className="relative z-10 hidden md:flex flex-1 h-full relative">
 
         {/* Photo — full rectangle, contact button overlays on top */}
-        <div ref={heroRef} className="absolute top-8 md:top-10 bottom-8 md:bottom-10 left-0 right-8 md:right-10 rounded-2xl overflow-hidden">
+        <div ref={heroRef} className="absolute top-8 md:top-10 bottom-8 md:bottom-10 left-0 right-8 md:right-10 rounded-2xl overflow-hidden opacity-0">
           {HERO_PHOTO ? (
             <Image
               src={HERO_PHOTO}
@@ -529,7 +529,7 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
         </div>
 
         {/* Contact button — overlays on top of the hero photo */}
-        <div ref={contactRef} className="absolute top-10 right-10 z-20">
+        <div ref={contactRef} className="absolute top-10 right-10 z-20 opacity-0">
           {/* Desktop: Gooey liquid button */}
           <div className="hidden md:block">
             <GooeyContactButton onClick={() => onNavigate('/contact')} />
