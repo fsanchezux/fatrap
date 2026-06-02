@@ -22,6 +22,8 @@ export interface ExplorerLeaf {
   files: ExplorerFile[]
   /** Optional action: when defined, clicking the leaf runs this instead of selecting files. */
   external?: () => void
+  /** Optional custom content for the right panel. When defined, replaces the file grid. */
+  renderContent?: () => React.ReactNode
 }
 
 export interface ExplorerGroup {
@@ -32,25 +34,65 @@ export interface ExplorerGroup {
 }
 
 export interface ExplorerSection {
-  label: string
+  /** When empty/undefined, the section header is omitted entirely. */
+  label?: string
   groups?: ExplorerGroup[]
   leaves?: ExplorerLeaf[]
 }
+
+type CloseMode = 'dismiss' | 'minimize' | 'maximize'
 
 interface ExplorerProps {
   tree: ExplorerSection[]
   open: boolean
   onClose: () => void
+  /** Optional leaf id to focus when the explorer opens (e.g., 'contact-us'). */
+  initialLeafId?: string
 }
 
 /* ─────────────────────────  COMPONENT  ───────────────────────── */
 
-export default function Explorer({ tree, open, onClose }: ExplorerProps) {
+export default function Explorer({ tree, open, onClose, initialLeafId }: ExplorerProps) {
   const rootRef = useRef<HTMLDivElement>(null)
   const bgRef = useRef<HTMLDivElement>(null)
   const sidebarRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const closeBtnRef = useRef<HTMLDivElement>(null)
+
+  // Which traffic-light triggered close (drives the close animation flavour)
+  const closeModeRef = useRef<CloseMode>('dismiss')
+
+  // Mobile sidebar drawer state
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => {
+      const mobile = window.matchMedia('(max-width: 767px)').matches
+      setIsMobile(mobile)
+    }
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  // When opening on mobile, start with sidebar collapsed; on desktop always open
+  useEffect(() => {
+    if (!open) return
+    setSidebarOpen(!isMobile)
+  }, [open, isMobile])
+
+  // When the explorer opens with an initialLeafId, focus that leaf
+  useEffect(() => {
+    if (open && initialLeafId) {
+      setActiveLeafId(initialLeafId)
+    }
+  }, [open, initialLeafId])
+
+  const closeWith = (mode: CloseMode) => {
+    closeModeRef.current = mode
+    onClose()
+  }
 
   // Flatten all leaves for quick lookup + default selection
   const allLeaves = useMemo(() => {
@@ -98,7 +140,7 @@ export default function Explorer({ tree, open, onClose }: ExplorerProps) {
       gsap.set(root, { display: 'flex', pointerEvents: 'auto' })
       gsap.set(bg, { opacity: 0 })
       gsap.set(sidebar, { opacity: 0, x: -40 })
-      gsap.set(panel, { opacity: 0, scale: 0.96, y: 30 })
+      gsap.set(panel, { opacity: 0, scale: 0.96, y: 30, rotation: 0, transformOrigin: 'center center' })
       gsap.set(closeBtn, { opacity: 0, scale: 0.7 })
 
       const tl = gsap.timeline()
@@ -107,15 +149,34 @@ export default function Explorer({ tree, open, onClose }: ExplorerProps) {
         .to(panel, { opacity: 1, scale: 1, y: 0, duration: 0.9, ease: 'power3.out' }, 0.1)
         .to(closeBtn, { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(1.6)' }, 0.45)
     } else {
+      const mode = closeModeRef.current
       const tl = gsap.timeline({
         onComplete: () => {
           gsap.set(root, { display: 'none', pointerEvents: 'none' })
+          // Reset mode for next open/close
+          closeModeRef.current = 'dismiss'
         },
       })
       tl.to(closeBtn, { opacity: 0, scale: 0.7, duration: 0.2, ease: 'power2.in' }, 0)
-        .to(panel, { opacity: 0, scale: 0.96, y: 30, duration: 0.5, ease: 'power2.in' }, 0)
-        .to(sidebar, { opacity: 0, x: -40, duration: 0.45, ease: 'power3.in' }, 0.05)
-        .to(bg, { opacity: 0, duration: 0.55, ease: 'power2.in' }, 0.15)
+
+      if (mode === 'minimize') {
+        // Yellow → slip downward, shrinking toward the bottom edge (like macOS minimise to dock)
+        gsap.set(panel, { transformOrigin: 'bottom center' })
+        tl.to(panel, { y: '110vh', scale: 0.25, opacity: 0, duration: 0.75, ease: 'power3.in' }, 0)
+          .to(sidebar, { opacity: 0, duration: 0.3, ease: 'power2.in' }, 0)
+          .to(bg, { opacity: 0, duration: 0.5, ease: 'power2.in' }, 0.2)
+      } else if (mode === 'maximize') {
+        // Green → zoom in big and fade (like maximising past the viewport)
+        gsap.set(panel, { transformOrigin: 'center center' })
+        tl.to(panel, { scale: 1.35, opacity: 0, duration: 0.6, ease: 'power2.in' }, 0)
+          .to(sidebar, { opacity: 0, duration: 0.3, ease: 'power2.in' }, 0)
+          .to(bg, { opacity: 0, duration: 0.55, ease: 'power2.in' }, 0.1)
+      } else {
+        // Red → gentle dismiss (default)
+        tl.to(panel, { opacity: 0, scale: 0.96, y: 30, duration: 0.5, ease: 'power2.in' }, 0)
+          .to(sidebar, { opacity: 0, x: -40, duration: 0.45, ease: 'power3.in' }, 0.05)
+          .to(bg, { opacity: 0, duration: 0.55, ease: 'power2.in' }, 0.15)
+      }
     }
   }, [open])
 
@@ -182,7 +243,15 @@ export default function Explorer({ tree, open, onClose }: ExplorerProps) {
   const renderLeaf = (leaf: ExplorerLeaf, indented = false) => (
     <li key={leaf.id}>
       <button
-        onClick={() => leaf.external ? leaf.external() : setActiveLeafId(leaf.id)}
+        onClick={() => {
+          if (leaf.external) {
+            leaf.external()
+            return
+          }
+          setActiveLeafId(leaf.id)
+          // Auto-collapse the drawer on mobile after picking a leaf
+          if (isMobile) setSidebarOpen(false)
+        }}
         className={`w-full ${indented ? 'pl-9 pr-3' : 'px-3'} py-1.5 flex items-center gap-2 text-sm rounded-md transition-colors ${
           activeLeafId === leaf.id && !leaf.external
             ? 'bg-white/20 text-white'
@@ -226,35 +295,70 @@ export default function Explorer({ tree, open, onClose }: ExplorerProps) {
           ref={panelRef}
           className="relative w-full h-full rounded-2xl shadow-2xl overflow-hidden flex"
         >
-          {/* SIDEBAR — semi-opaque, joined to white panel */}
+          {/* Mobile-only hamburger — visible when the drawer is collapsed */}
+          {isMobile && !sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Abrir menú"
+              className="absolute top-3 left-3 z-40 w-9 h-9 rounded-md bg-neutral-800/70 backdrop-blur-md text-white flex items-center justify-center md:hidden"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
+
+          {/* SIDEBAR — semi-opaque, joined to white panel (mobile: slide-in drawer) */}
           <aside
             ref={sidebarRef}
-            className="relative w-60 h-full overflow-y-auto pt-12 pb-6 px-2 text-white shrink-0"
+            className={`absolute md:relative top-0 left-0 z-30 w-60 h-full overflow-y-auto pt-12 pb-6 px-2 text-white shrink-0 transition-transform duration-300 ease-out ${
+              sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+            }`}
             style={{ backgroundColor: 'rgba(30,30,30,0.55)', backdropFilter: 'blur(10px)' }}
           >
-            {/* macOS-style traffic lights — top-left of sidebar */}
+            {/* macOS-style traffic lights — top-left of sidebar. Each closes with its own animation. */}
             <div
               ref={closeBtnRef}
               className="absolute top-4 left-4 z-30 flex items-center gap-2"
             >
               <button
-                onClick={onClose}
+                onClick={() => closeWith('dismiss')}
                 aria-label="Cerrar"
-                className="group w-3.5 h-3.5 rounded-full bg-[#FF5F57] hover:brightness-95 transition-all flex items-center justify-center"
+                className="w-3.5 h-3.5 rounded-full bg-[#FF5F57] hover:brightness-95 transition-all"
+              />
+              <button
+                onClick={() => closeWith('minimize')}
+                aria-label="Minimizar"
+                className="w-3.5 h-3.5 rounded-full bg-[#FEBC2E] hover:brightness-95 transition-all"
+              />
+              <button
+                onClick={() => closeWith('maximize')}
+                aria-label="Maximizar"
+                className="w-3.5 h-3.5 rounded-full hover:brightness-95 transition-all"
+                style={{ backgroundColor: '#c3c491' }}
+              />
+            </div>
+
+            {/* Mobile-only close-drawer button */}
+            {isMobile && (
+              <button
+                onClick={() => setSidebarOpen(false)}
+                aria-label="Cerrar menú"
+                className="absolute top-3.5 right-3 z-30 text-white/70 hover:text-white md:hidden"
               >
-                <svg width="7" height="7" viewBox="0 0 8 8" className="opacity-0 group-hover:opacity-80 transition-opacity">
-                  <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="#4d0000" strokeWidth="1.2" strokeLinecap="round" />
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M11 4L5 10M5 4l6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </button>
-              <span className="w-3.5 h-3.5 rounded-full bg-[#FEBC2E]" aria-hidden />
-              <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: '#c3c491' }} aria-hidden />
-            </div>
+            )}
 
             {tree.map((section, i) => (
               <div key={i} className="mb-4">
-                <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/55">
-                  {section.label}
-                </div>
+                {section.label && (
+                  <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/55">
+                    {section.label}
+                  </div>
+                )}
                 <ul className="mt-1 space-y-0.5">
                   {section.groups?.map(group => {
                     const isOpen = expandedGroups[group.id]
@@ -360,49 +464,55 @@ export default function Explorer({ tree, open, onClose }: ExplorerProps) {
             )}
           </div>
 
-          {/* File grid for selected leaf */}
+          {/* Right panel content */}
           <div className="absolute inset-0 pt-6 pb-6 pl-6 md:pl-8 pr-[150px] md:pr-[170px] overflow-y-auto">
-            <h2 className="text-2xl md:text-3xl font-semibold text-gray-900 mb-1 leading-tight">
-              {activeLeaf?.label || 'Selecciona una categoría'}
-            </h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Arrastra los archivos a la carpeta para descargar todos en un .zip
-            </p>
-
-            {activeLeaf && activeLeaf.files.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-                {activeLeaf.files.map(file => (
-                  <div
-                    key={file.id}
-                    draggable
-                    onDragStart={(e) => onDragStartFile(e, file)}
-                    className="group relative cursor-grab active:cursor-grabbing rounded-xl overflow-hidden bg-neutral-50 hover:shadow-lg hover:scale-[1.02] transition-all select-none"
-                  >
-                    <div className="aspect-square bg-neutral-100">
-                      {file.thumbnail ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={file.thumbnail}
-                          alt={file.name}
-                          className="w-full h-full object-cover"
-                          draggable={false}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-neutral-400">
-                          <svg width="34" height="34" viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M4 4a2 2 0 012-2h5l1 2h5a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V4z" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    <div className="px-3 py-2 text-xs text-gray-700 truncate" title={file.name}>
-                      {file.name}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {activeLeaf?.renderContent ? (
+              activeLeaf.renderContent()
             ) : (
-              <div className="text-gray-400 text-sm">No hay archivos en esta categoría.</div>
+              <>
+                <h2 className="text-2xl md:text-3xl font-semibold text-gray-900 mb-1 leading-tight">
+                  {activeLeaf?.label || 'Selecciona una categoría'}
+                </h2>
+                <p className="text-sm text-gray-500 mb-6">
+                  Arrastra los archivos a la carpeta para descargar todos en un .zip
+                </p>
+
+                {activeLeaf && activeLeaf.files.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                    {activeLeaf.files.map(file => (
+                      <div
+                        key={file.id}
+                        draggable
+                        onDragStart={(e) => onDragStartFile(e, file)}
+                        className="group relative cursor-grab active:cursor-grabbing rounded-xl overflow-hidden bg-neutral-50 hover:shadow-lg hover:scale-[1.02] transition-all select-none"
+                      >
+                        <div className="aspect-square bg-neutral-100">
+                          {file.thumbnail ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={file.thumbnail}
+                              alt={file.name}
+                              className="w-full h-full object-cover"
+                              draggable={false}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-neutral-400">
+                              <svg width="34" height="34" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M4 4a2 2 0 012-2h5l1 2h5a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V4z" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                        <div className="px-3 py-2 text-xs text-gray-700 truncate" title={file.name}>
+                          {file.name}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-400 text-sm">No hay archivos en esta categoría aún.</div>
+                )}
+              </>
             )}
           </div>
           </div>

@@ -7,7 +7,7 @@ import GooeyContactButton from './GooeyContactButton'
 
 interface HomePageProps {
   onNavigate: (path: string) => void
-  onOpenExplorer: () => void
+  onOpenExplorer: (initialLeafId?: string) => void
   onMakeItYours: () => void
 }
 
@@ -347,7 +347,7 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
               ref={cell1Ref}
               className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity px-5 z-10 flex items-center"
               style={{ backgroundColor: '#c3c491', gridColumn: '1', gridRow: '1' }}
-              onClick={onOpenExplorer}
+              onClick={() => onOpenExplorer()}
             >
               <div className="flex items-center gap-4">
                 <span className="rounded-full bg-black flex-shrink-0" style={{ width: '1.25rem', height: '1.25rem' }} />
@@ -362,7 +362,7 @@ export default function HomePage({ onNavigate, onOpenExplorer }: HomePageProps) 
               ref={cell2Ref}
               className="relative rounded-xl overflow-hidden cursor-pointer hover:opacity-90 active:opacity-80 transition-opacity z-10"
               style={{ gridColumn: '2', gridRow: '1 / 4', height: 'clamp(8rem, 18vw, 14rem)' }}
-              onClick={() => onNavigate(gridItems[1].path)}
+              onClick={() => onOpenExplorer('contact-us')}
             >
               {gridItems[1].photo && (
                 <Image src={gridItems[1].photo} alt={gridItems[1].tag} fill className="object-cover object-center" />

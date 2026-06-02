@@ -1,29 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import WindowFrame from '@/components/WindowFrame'
-import Sidebar from '@/components/Sidebar'
-import Toolbar from '@/components/Toolbar'
-import FileGrid from '@/components/FileGrid'
 import ContactForm from '@/components/ContactForm'
-import DownloadGrid from '@/components/DownloadGrid'
 import HomePage from '@/components/HomePage'
-import DIYRecommendations from '@/components/DIYRecommendations'
 import Explorer, { ExplorerSection } from '@/components/Explorer'
-
-interface SidebarOption {
-  id: number
-  name: string
-  icon: string
-  path: string
-  color?: string | null
-}
-
-interface SidebarSection {
-  id: number
-  name: string
-  options: SidebarOption[]
-}
 
 interface FileItem {
   id: number
@@ -96,57 +77,19 @@ const stickerEditFiles: DownloadFile[] = [
   { name: 'a4_square_logo.af', url: 'https://res.cloudinary.com/dduwvhgl9/raw/upload/v1771440195/fatrap/edit/stickers/wu6ftrnhvob4ocdndm0f.af' },
 ]
 
-// Default sidebar data
-const defaultSections: SidebarSection[] = [
-  {
-    id: 1,
-    name: 'Print files',
-    options: [
-      { id: 1, name: 'Stickers', icon: 'sticker', path: '/print/stickers' },
-      { id: 2, name: 'DTF', icon: 'dtf', path: '/print/dtf' },
-      { id: 3, name: 'DIY recomendations', icon: 'palette', path: '/print/diy' },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Gallery',
-    options: [
-      { id: 4, name: '(2018) First steps', icon: 'gallery', path: '/gallery/2018-first-steps' },
-      { id: 5, name: '(2023) Fatrap x Caribu', icon: 'gallery', path: '/gallery/2023-fatrap-caribu' },
-      { id: 6, name: '(2024) Fatrap College', icon: 'gallery', path: '/gallery/2024-fatrap-college' },
-      { id: 7, name: '(2024) Les Santes Olimpiques', icon: 'gallery', path: '/gallery/2024-les-santes-olimpiques' },
-      { id: 8, name: '(2025) Fatrap Don\'t Stay Relevant', icon: 'gallery', path: '/gallery/2025-dont-stay-relevant' },
-      { id: 9, name: '(2025) Fatrap Welcome to the basics', icon: 'gallery', path: '/gallery/2025-welcome-to-basics' },
-      { id: 10, name: '(2025) Fatrap x Court', icon: 'gallery', path: '/gallery/2025-fatrap-court' },
-      { id: 111, name: '(2025) Fatrap Pa\' esa mierda ya no tengo tiempo', icon: 'gallery', path: '/gallery/2025-pa-esa-mierda' },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Contact us',
-    options: [
-      { id: 120, name: 'Contact us', icon: 'mail', path: '/contact' },
-    ],
-  },
-]
-
-// Default files - populated from database/API
-const defaultFiles: FileItem[] = []
-
 export default function Home() {
-  const [sections, setSections] = useState<SidebarSection[]>(defaultSections)
-  const [files, setFiles] = useState<FileItem[]>(defaultFiles)
-  const [activePath, setActivePath] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [miy, setMiy] = useState<'idle' | 'in' | 'out'>('idle')
   const [explorerOpen, setExplorerOpen] = useState(false)
+  const [explorerInitialLeafId, setExplorerInitialLeafId] = useState<string | undefined>(undefined)
+
+  const openExplorer = (leafId?: string) => {
+    setExplorerInitialLeafId(leafId)
+    setExplorerOpen(true)
+  }
 
   // Tree structure for the Explorer (mirrors original sidebar layout)
   const explorerTree: ExplorerSection[] = [
     {
-      label: 'Print files',
+      // No section label at the top — the user wants this section to start without a header
       groups: [
         {
           id: 'stickers',
@@ -209,190 +152,28 @@ export default function Home() {
           label: 'Contact us',
           icon: 'mail',
           files: [],
-          external: () => {
-            setExplorerOpen(false)
-            // Wait for the close animation, then navigate
-            setTimeout(() => handleNavigate('/contact'), 650)
-          },
+          renderContent: () => <ContactForm />,
         },
       ],
     },
   ]
 
-  const handleMakeItYours = () => {
-    setMiy('in')
-    setTimeout(() => {
-      setMiy('idle')
-      setActivePath('/print/diy')
-    }, 450)
-  }
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [sectionsRes, filesRes] = await Promise.all([
-          fetch('/api/sidebar-options'),
-          fetch('/api/files'),
-        ])
-
-        if (sectionsRes.ok) {
-          const sectionsData = await sectionsRes.json()
-          if (sectionsData.length > 0) {
-            setSections(sectionsData)
-          }
-        }
-
-        if (filesRes.ok) {
-          const filesData = await filesRes.json()
-          if (filesData.length > 0) {
-            setFiles(filesData)
-          }
-        }
-      } catch (error) {
-        console.log('Using default data (API not available):', error)
-      }
-    }
-
-    fetchData()
-  }, [])
-
-  const handleNavigate = (path: string) => {
-    if (path === '/') {
-      setActivePath(null)
-      setSidebarOpen(false)
-    } else {
-      setActivePath(path)
-    }
-  }
-
-  const handleGoHome = () => {
-    setActivePath(null)
-    setSidebarOpen(false)
-  }
-
-  const filteredFiles = files
-    .filter((file) => activePath && file.path === activePath)
-    .filter((file) =>
-      file.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-
-  // Map paths to display titles
-  const pathTitleMap: Record<string, string> = {
-    '/print/stickers/print': 'Stickers — Print files',
-    '/print/stickers/edit': 'Stickers — Edit files',
-    '/print/dtf/print': 'DTF — Print files',
-    '/print/dtf/edit': 'DTF — Edit files',
-    '/print/diy': 'DIY — Recommendations',
-  }
-
-  const getWindowTitle = () => {
-    if (!activePath) return undefined
-    if (pathTitleMap[activePath]) return pathTitleMap[activePath]
-    const option = sections.flatMap((s) => s.options).find((o) => o.path === activePath)
-    return option?.name
-  }
-
-  const getTitle = () => {
-    if (!activePath) return 'Fatrap'
-    if (pathTitleMap[activePath]) return pathTitleMap[activePath]
-    const option = sections.flatMap((s) => s.options).find((o) => o.path === activePath)
-    return option?.name || 'Fatrap'
-  }
-
-  // Decide what to render in the main area
-  const renderMain = () => {
-    if (!activePath) {
-      return <HomePage onNavigate={handleNavigate} onOpenExplorer={() => setExplorerOpen(true)} onMakeItYours={handleMakeItYours} />
-    }
-    if (activePath === '/contact') {
-      return <ContactForm />
-    }
-    if (activePath === '/print/diy') {
-      return <DIYRecommendations />
-    }
-    if (activePath === '/print/stickers/print') {
-      return (
-        <>
-          <Toolbar title={getTitle()} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-          <FileGrid files={stickerPrintFiles} viewMode={viewMode} />
-        </>
-      )
-    }
-    if (activePath === '/print/stickers/edit') {
-      return (
-        <>
-          <Toolbar title={getTitle()} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-          <DownloadGrid files={stickerEditFiles} viewMode={viewMode} />
-        </>
-      )
-    }
-    if (activePath === '/print/dtf/print') {
-      return (
-        <>
-          <Toolbar title={getTitle()} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-          <FileGrid files={dtfPrintFiles} viewMode={viewMode} />
-        </>
-      )
-    }
-    if (activePath === '/print/dtf/edit') {
-      return (
-        <>
-          <Toolbar title={getTitle()} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-          <DownloadGrid files={dtfEditFiles} viewMode={viewMode} />
-        </>
-      )
-    }
-    return (
-      <>
-        <Toolbar title={getTitle()} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-        <FileGrid files={filteredFiles} viewMode={viewMode} />
-      </>
-    )
-  }
-
   return (
     <WindowFrame>
-      <Sidebar
-        sections={sections}
-        activePath={activePath ?? ''}
-        onNavigate={handleNavigate}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onOpen={() => setSidebarOpen(true)}
-        isLanding={activePath === null}
-      />
       <main className="relative flex-1 flex flex-col bg-white overflow-hidden">
-        {/* Close-tab X button — only shown on inner pages */}
-        {activePath !== null && (
-          <button
-            onClick={handleGoHome}
-            title="Volver al inicio"
-            className="absolute top-3 right-3 z-30 w-7 h-7 rounded-full bg-gray-200 hover:bg-red-500 hover:text-white text-gray-500 flex items-center justify-center transition-colors shadow-sm"
-            aria-label="Cerrar y volver al inicio"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M1 1l10 10M11 1L1 11" />
-            </svg>
-          </button>
-        )}
-        {renderMain()}
+        <HomePage
+          onNavigate={() => { /* legacy noop — kept to satisfy HomePage prop */ }}
+          onOpenExplorer={openExplorer}
+          onMakeItYours={() => { /* legacy noop — DIY flow removed */ }}
+        />
       </main>
-
-      {/* ── Make it yours zoom transition ── */}
-      {miy !== 'idle' && (
-        <div
-          className="absolute inset-0 z-50 bg-white overflow-auto miy-zoom-in"
-          style={{ transformOrigin: '22% 62%' }}
-        >
-          <DIYRecommendations />
-        </div>
-      )}
 
       {/* ── Explorer overlay — animates open/close on top of HomePage ── */}
       <Explorer
         tree={explorerTree}
         open={explorerOpen}
         onClose={() => setExplorerOpen(false)}
+        initialLeafId={explorerInitialLeafId}
       />
     </WindowFrame>
   )
