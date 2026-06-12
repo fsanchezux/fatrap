@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Fatrap — Files</title>
+  <meta name="description" content="Fatrap open-source brand files. Drag a photo into the folder to collect that drop's stampable files and download them as a .zip." />
+  <link rel="icon" href="/logo.png" />
+
+  <!-- JSZip for the zip download (same lib the current app uses) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --panel: rgba(34, 34, 34, 0.72);
+      --panel-solid: #181818;
+      --line: rgba(255, 255, 255, 0.12);
+      --text: #f4f4f4;
+      --muted: rgba(255, 255, 255, 0.55);
+      --accent: #c3c491;        /* brand olive */
+      --nav-h: 88px;
+      --gap: 10px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+    button { font-family: inherit; }
+    img { -webkit-user-drag: none; }
+
+    /* checker pattern so transparent print PNGs are visible */
+    .checker {
+      background-color: #fff;
+      background-image:
+        linear-gradient(45deg, #d7d7d7 25%, transparent 25%),
+        linear-gradient(-45deg, #d7d7d7 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #d7d7d7 75%),
+        linear-gradient(-45deg, transparent 75%, #d7d7d7 75%);
+      background-size: 12px 12px;
+      background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+    }
+
+    /* ─────────────── Navbar ─────────────── */
+    header {
+      position: fixed; inset: 0 0 auto 0; z-index: 40;
+      display: flex; justify-content: center; padding: 14px 16px 0; pointer-events: none;
+    }
+    .pill {
+      pointer-events: auto; width: min(680px, 100%);
+      display: flex; align-items: center; gap: 14px;
+      background: var(--panel); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--line); border-radius: 999px;
+      padding: 8px 10px 8px 18px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    .brand { height: 26px; width: auto; flex-shrink: 0; display: block; user-select: none; cursor: pointer; }
+    @media (max-width: 600px) { .brand { height: 22px; } }
+
+    .search-wrap { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; }
+    .search-icon { position: absolute; left: 12px; width: 15px; height: 15px; color: var(--muted); pointer-events: none; }
+    .chip {
+      display: none; align-items: center; gap: 6px; flex-shrink: 0; margin-right: 8px;
+      padding: 5px 6px 5px 11px; background: rgba(195, 196, 145, 0.16); color: var(--accent);
+      border: 1px solid rgba(195, 196, 145, 0.4); border-radius: 999px; font-size: 12px; max-width: 45%;
+    }
+    .chip.show { display: inline-flex; }
+    .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chip button { background: none; border: 0; color: inherit; cursor: pointer; font-size: 14px; line-height: 1; padding: 0; opacity: .8; }
+    .chip button:hover { opacity: 1; }
+    #search { width: 100%; background: transparent; border: 0; outline: none; color: var(--text); font-size: 15px; padding: 8px 8px 8px 34px; }
+    #search::placeholder { color: var(--muted); }
+
+    .contact-btn { flex-shrink: 0; background: #fff; color: #111; border: 0; border-radius: 999px; padding: 9px 18px; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform .12s ease, background .12s ease; }
+    .contact-btn:hover { background: #e9e9e3; }
+    .contact-btn:active { transform: scale(.96); }
+
+    .popover {
+      position: absolute; top: calc(100% + 12px); left: 0; width: min(340px, 78vw);
+      max-height: min(60vh, 420px); overflow-y: auto; background: var(--panel-solid);
+      border: 1px solid var(--line); border-radius: 16px; padding: 8px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+      opacity: 0; transform: translateY(-6px); pointer-events: none; transition: opacity .16s ease, transform .16s ease; z-index: 50;
+    }
+    .popover.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .popover .ph { padding: 8px 12px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+    .popover button.opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; background: none; border: 0; cursor: pointer; color: var(--text); padding: 9px 12px; border-radius: 10px; font-size: 14px; }
+    .popover button.opt:hover { background: rgba(255,255,255,.08); }
+    .popover button.opt.active { background: rgba(195, 196, 145, 0.16); color: var(--accent); }
+    .popover button.opt .count { font-size: 12px; color: var(--muted); }
+
+    /* ─────────────── Masonry grid ─────────────── */
+    main { padding: var(--nav-h) var(--gap) 120px; }
+    #grid { column-count: 5; column-gap: var(--gap); }
+    @media (max-width: 1280px) { #grid { column-count: 4; } }
+    @media (max-width: 900px)  { #grid { column-count: 3; } }
+    @media (max-width: 600px)  { #grid { column-count: 2; --gap: 8px; } }
+
+    .card { position: relative; break-inside: avoid; margin-bottom: var(--gap); border-radius: 7px; overflow: hidden; background: #161616; cursor: grab; transition: transform .2s ease, box-shadow .2s ease; }
+    .card:active { cursor: grabbing; }
+    .card.hidden { display: none; }
+    .card img { width: 100%; display: block; min-height: 60px; }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(0,0,0,.5); }
+    .card .veil { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.66), rgba(0,0,0,0) 45%); opacity: 0; transition: opacity .2s ease; pointer-events: none; }
+    .card:hover .veil { opacity: 1; }
+    .card .cap { position: absolute; left: 10px; right: 44px; bottom: 9px; font-size: 11px; color: #fff; opacity: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 3px rgba(0,0,0,.6); transition: opacity .2s ease; pointer-events: none; }
+    .card:hover .cap { opacity: .95; }
+    .card.nofiles .cap { color: #ffd9d9; }
+    .add { position: absolute; top: 8px; right: 8px; height: 30px; padding: 0 9px; border-radius: 999px; display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,.55); color: #fff; border: 1px solid rgba(255,255,255,.25); cursor: pointer; opacity: 0; transform: scale(.85); transition: opacity .18s ease, transform .18s ease, background .15s ease; backdrop-filter: blur(4px); font-size: 13px; font-weight: 600; }
+    .card:hover .add { opacity: 1; transform: scale(1); }
+    .add:hover { background: var(--accent); color: #111; border-color: var(--accent); }
+    .add.added { background: var(--accent); color: #111; border-color: var(--accent); opacity: 1; transform: scale(1); }
+    @media (hover: none) { .add { opacity: .92; transform: scale(1); } .card .cap { opacity: .9; } }
+
+    .empty { column-span: all; text-align: center; color: var(--muted); padding: 80px 20px; font-size: 15px; }
+
+    /* ─────────────── Folder drop zone ─────────────── */
+    .folder { position: fixed; right: 18px; bottom: 18px; z-index: 45; cursor: pointer; transition: transform .25s ease; filter: drop-shadow(0 8px 18px rgba(0,0,0,.55)); }
+    .folder svg { display: block; }
+    .folder.drag { transform: scale(1.12); }
+    .folder.drag .folder-front { fill: var(--accent); }
+    .folder .badge { position: absolute; top: -6px; right: -6px; min-width: 22px; height: 22px; padding: 0 6px; background: var(--accent); color: #111; border-radius: 999px; font-size: 12px; font-weight: 700; display: none; align-items: center; justify-content: center; }
+    .folder .badge.show { display: flex; }
+
+    /* ─────────────── Edit-drops button (bottom-left) ─────────────── */
+    .editbtn {
+      position: fixed; left: 18px; bottom: 22px; z-index: 45;
+      display: none; align-items: center; gap: 7px;
+      background: var(--panel); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--line); color: var(--text);
+      border-radius: 999px; padding: 9px 15px; font-size: 13px; font-weight: 500; cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0,0,0,.4); transition: transform .12s ease, background .15s ease;
+    }
+    .editbtn:hover { background: rgba(50,50,50,.8); }
+    .editbtn:active { transform: scale(.96); }
+    body.admin .editbtn { display: inline-flex; }
+
+    /* ─────────────── Basket tray ─────────────── */
+    .tray { position: fixed; right: 18px; bottom: 104px; z-index: 46; width: min(360px, calc(100vw - 36px)); background: var(--panel-solid); border: 1px solid var(--line); border-radius: 16px; padding: 14px; box-shadow: 0 24px 60px rgba(0,0,0,.6); opacity: 0; transform: translateY(12px) scale(.98); pointer-events: none; transition: opacity .2s ease, transform .2s ease; }
+    .tray.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+    .tray-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .tray-head h3 { margin: 0; font-size: 14px; font-weight: 600; }
+    .tray-head .clear { background: none; border: 0; color: var(--muted); font-size: 12px; cursor: pointer; }
+    .tray-head .clear:hover { color: #fff; }
+    .tray-body { max-height: 46vh; overflow-y: auto; margin-bottom: 12px; }
+    .tray-empty { color: var(--muted); font-size: 13px; padding: 10px 2px 14px; line-height: 1.5; }
+    .tray-group { margin-bottom: 10px; }
+    .tray-group-head { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); margin: 6px 2px 6px; }
+    .tray-item { display: flex; align-items: center; gap: 10px; padding: 5px; border-radius: 9px; }
+    .tray-item:hover { background: rgba(255,255,255,.05); }
+    .tray-item .pthumb { width: 40px; height: 40px; border-radius: 7px; overflow: hidden; flex-shrink: 0; }
+    .tray-item .pthumb img { width: 100%; height: 100%; object-fit: contain; }
+    .tray-item .nm { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tray-item .rm { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 4px; flex-shrink: 0; }
+    .tray-item .rm:hover { color: #ff7a7a; }
+    .dl { width: 100%; padding: 11px; border: 0; border-radius: 999px; background: var(--accent); color: #111; font-weight: 600; font-size: 14px; cursor: pointer; transition: filter .15s ease, transform .1s ease; }
+    .dl:hover { filter: brightness(1.06); }
+    .dl:active { transform: scale(.98); }
+    .dl:disabled { opacity: .6; cursor: wait; }
+
+    /* ─────────────── Toast ─────────────── */
+    .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 16px); z-index: 70; background: #2b2b2b; color: #fff; border: 1px solid var(--line); padding: 10px 16px; border-radius: 999px; font-size: 13px; box-shadow: 0 12px 30px rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease; max-width: calc(100vw - 36px); }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* ─────────────── Modals ─────────────── */
+    .modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(0,0,0,.6); backdrop-filter: blur(6px); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+    .modal.open { opacity: 1; pointer-events: auto; }
+    .modal-card { width: 100%; max-width: 460px; background: #fff; color: #111; border-radius: 18px; padding: 26px; position: relative; transform: translateY(14px) scale(.98); transition: transform .25s ease; max-height: calc(100vh - 36px); overflow-y: auto; }
+    .modal.open .modal-card { transform: translateY(0) scale(1); }
+    .modal-card.dark { background: var(--panel-solid); color: var(--text); border: 1px solid var(--line); max-width: 620px; }
+    .modal-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border: 0; border-radius: 999px; background: #f1f1f1; color: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .modal-close:hover { background: #e6e6e6; }
+    .modal-card.dark .modal-close { background: #2c2c2c; color: #ddd; }
+    .modal-card.dark .modal-close:hover { background: #3a3a3a; }
+    .modal h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.01em; }
+    .modal p.sub { margin: 0 0 20px; font-size: 13px; color: #6b7280; }
+    .modal-card.dark p.sub { color: var(--muted); }
+
+    /* contact form */
+    .field { margin-bottom: 14px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 420px) { .row2 { grid-template-columns: 1fr; } }
+    .field label { display: block; font-size: 12px; font-weight: 500; color: #4b5563; margin-bottom: 6px; }
+    .field label .req { color: #f87171; }
+    .field input, .field textarea { width: 100%; padding: 10px 12px; font-size: 14px; font-family: inherit; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; color: #111; outline: none; transition: border .15s ease, background .15s ease; }
+    .field input:focus, .field textarea:focus { background: #fff; border-color: #c9c9c9; box-shadow: 0 0 0 3px rgba(0,0,0,.05); }
+    .field textarea { resize: none; }
+    .submit { width: 100%; padding: 12px; border: 0; border-radius: 10px; background: #111; color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background .15s ease; }
+    .submit:hover { background: #2b2b2b; }
+    .submit:disabled { background: #9ca3af; cursor: default; }
+    .form-msg { font-size: 13px; border-radius: 10px; padding: 10px 12px; margin-top: 4px; }
+    .form-msg.err { color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; }
+    .form-success { text-align: center; border: 1px solid #bbf7d0; background: #f0fdf4; border-radius: 14px; padding: 26px; }
+    .form-success .ok { width: 46px; height: 46px; border-radius: 999px; background: #dcfce7; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+    .form-success p { margin: 0; }
+    .form-success .t { color: #166534; font-weight: 600; }
+    .form-success .d { color: #16a34a; font-size: 13px; margin-top: 4px; }
+    .form-success button { margin-top: 16px; background: none; border: 0; color: #15803d; text-decoration: underline; cursor: pointer; font-size: 13px; }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─────────────── Editor ─────────────── */
+    .ed-controls { display: flex; align-items: center; gap: 10px; margin: 4px 0 16px; flex-wrap: wrap; }
+    .ed-select { flex: 1; min-width: 180px; background: #101010; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; font-family: inherit; }
+    .ed-assigned { font-size: 12px; color: var(--accent); white-space: nowrap; }
+    .ed-status { font-size: 12px; color: var(--muted); white-space: nowrap; margin-left: auto; }
+    .ed-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-height: 46vh; overflow-y: auto; padding-right: 2px; }
+    @media (max-width: 540px) { .ed-list { grid-template-columns: 1fr; } }
+    .ed-group-label { grid-column: 1 / -1; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-top: 8px; }
+    .ed-item { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; user-select: none; transition: border .12s ease, background .12s ease; }
+    .ed-item:hover { border-color: rgba(255,255,255,.28); }
+    .ed-item.on { border-color: var(--accent); background: rgba(195,196,145,.12); }
+    .ed-item input { width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+    .ed-item .pthumb { width: 42px; height: 42px; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+    .ed-item .pthumb img { width: 100%; height: 100%; object-fit: contain; }
+    .ed-item .nm { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ed-foot { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+    .ed-foot button { border-radius: 999px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--text); transition: background .15s ease; }
+    .ed-foot button:hover { background: rgba(255,255,255,.08); }
+    .ed-foot .primary { background: var(--accent); color: #111; border-color: var(--accent); margin-left: auto; }
+    .ed-foot .primary:hover { filter: brightness(1.06); background: var(--accent); }
+
+    /* ─────────────── No-files dialog ─────────────── */
+    .nf-card { max-width: 400px; text-align: center; }
+    .nf-icon { width: 54px; height: 54px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; margin: 6px auto 14px; color: var(--muted); }
+    #noFilesDrop { color: var(--accent); }
+    .nf-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+    .nf-actions button { border-radius: 999px; padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--text); transition: background .15s ease, filter .15s ease; }
+    .nf-actions button:hover { background: rgba(255,255,255,.08); }
+    .nf-actions .nf-primary { background: var(--accent); color: #111; border-color: var(--accent); display: inline-flex; align-items: center; gap: 7px; }
+    .nf-actions .nf-primary:hover { filter: brightness(1.06); background: var(--accent); }
+
+    /* ─────────────── Admin login ─────────────── */
+    #adminPass { width: 100%; padding: 11px 14px; font-size: 15px; font-family: inherit; background: #101010; color: var(--text); border: 1px solid var(--line); border-radius: 10px; outline: none; margin-bottom: 10px; }
+    #adminPass:focus { border-color: var(--accent); }
+    #adminForm .form-msg.err { text-align: left; margin: 0 0 10px; }
+    #adminSubmit { width: 100%; justify-content: center; }
+
+    .loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <!-- ───── Navbar ───── -->
+  <header>
+    <div class="pill">
+      <img class="brand" src="/images/LOGO_SINNADA_BLANCO.png" alt="Fatrap" />
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <circle cx="9" cy="9" r="6.5" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M14 14l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <div class="chip" id="chip"><span id="chipLabel"></span><button type="button" id="chipClear" aria-label="Quitar filtro">&times;</button></div>
+        <input id="search" type="text" placeholder="Search" autocomplete="off" aria-label="Buscar fotos o drop" />
+        <div class="popover" id="popover" role="listbox" aria-label="Drops"></div>
+      </div>
+      <button class="contact-btn" id="contactOpen">Contact</button>
+    </div>
+  </header>
+
+  <!-- ───── Grid (gallery photos only) ───── -->
+  <main>
+    <div id="grid"></div>
+    <div class="loading" id="loading">Cargando…</div>
+  </main>
+
+  <!-- ───── Edit drops ───── -->
+  <button class="editbtn" id="editOpen" aria-label="Editar drops">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9.5 1.5l3 3L5 12l-3.5.5L2 9 9.5 1.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+    Drops
+  </button>
+
+  <!-- ───── Basket tray ───── -->
+  <div class="tray" id="tray" aria-live="polite">
+    <div class="tray-head">
+      <h3>Tu carpeta (<span id="trayCount">0</span>)</h3>
+      <button class="clear" id="trayClear">Vaciar</button>
+    </div>
+    <div class="tray-body" id="trayBody"></div>
+    <button class="dl" id="downloadZip">Descargar .zip</button>
+  </div>
+
+  <!-- ───── Folder drop zone ───── -->
+  <div class="folder" id="folder" role="button" tabindex="0" aria-label="Carpeta — suelta una foto aquí">
+    <span class="badge" id="folderBadge">0</span>
+    <svg width="64" height="54" viewBox="0 0 64 54" fill="none" aria-hidden="true">
+      <path class="folder-back" d="M3 11a4 4 0 0 1 4-4h17l5 6h28a4 4 0 0 1 4 4v3H3V11Z" fill="#4a4a4a"/>
+      <path class="folder-front" d="M3 18a4 4 0 0 1 4-4h50a4 4 0 0 1 4 4v28a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V18Z" fill="#3a3a3a"/>
+    </svg>
+  </div>
+
+  <!-- ───── Toast ───── -->
+  <div class="toast" id="toast" role="status"></div>
+
+  <!-- ───── Contact modal ───── -->
+  <div class="modal" id="contactModal" role="dialog" aria-modal="true" aria-labelledby="contactTitle">
+    <div class="modal-card">
+      <button class="modal-close" id="contactClose" aria-label="Cerrar"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      <div id="contactBody">
+        <h2 id="contactTitle">Contact us</h2>
+        <p class="sub">Send us a message and we'll get back to you as soon as possible.</p>
+        <form id="contactForm" novalidate>
+          <div class="row2">
+            <div class="field"><label for="cName">Name <span class="req">*</span></label><input id="cName" name="name" type="text" required placeholder="Your name" /></div>
+            <div class="field"><label for="cEmail">Email <span class="req">*</span></label><input id="cEmail" name="email" type="email" required placeholder="your@email.com" /></div>
+          </div>
+          <div class="field"><label for="cSubject">Subject</label><input id="cSubject" name="subject" type="text" placeholder="What's this about?" /></div>
+          <div class="field"><label for="cMessage">Message <span class="req">*</span></label><textarea id="cMessage" name="message" rows="5" required placeholder="Write your message here..."></textarea></div>
+          <div id="formError" class="form-msg err" style="display:none"></div>
+          <button class="submit" id="contactSubmit" type="submit">Send message</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ───── Editor modal ───── -->
+  <div class="modal" id="editorModal" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+    <div class="modal-card dark">
+      <button class="modal-close" id="editorClose" aria-label="Cerrar"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      <h2 id="editorTitle">Editar drops</h2>
+      <p class="sub">Elige un drop y marca qué archivos de estampar lleva. Los cambios se guardan en el servidor y se aplican a todos al instante.</p>
+      <div class="ed-controls">
+        <select class="ed-select" id="edDrop" aria-label="Drop"></select>
+        <span class="ed-assigned" id="edAssigned"></span>
+        <span class="ed-status" id="edStatus"></span>
+      </div>
+      <div class="ed-list" id="edList"></div>
+      <div class="ed-foot">
+        <button type="button" id="edReset">Recargar</button>
+        <button type="button" id="edImport">Importar JSON</button>
+        <button type="button" id="edExport">Exportar JSON</button>
+        <button type="button" id="edLogout">Salir admin</button>
+        <button type="button" class="primary" id="edDone">Hecho</button>
+      </div>
+      <input type="file" id="edFile" accept="application/json,.json" style="display:none" />
+    </div>
+  </div>
+
+  <!-- ───── Admin login modal ───── -->
+  <div class="modal" id="adminModal" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+    <div class="modal-card dark nf-card">
+      <button class="modal-close" id="adminClose" aria-label="Cerrar"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      <div class="nf-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.5"/></svg>
+      </div>
+      <h2 id="adminTitle">Acceso admin</h2>
+      <p class="sub">Introduce la contraseña para editar los drops.</p>
+      <form id="adminForm" novalidate>
+        <input id="adminPass" type="password" placeholder="Contraseña" autocomplete="current-password" />
+        <div id="adminError" class="form-msg err" style="display:none">Contraseña incorrecta.</div>
+        <button type="submit" class="nf-primary" id="adminSubmit">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ───── No-files modal ───── -->
+  <div class="modal" id="noFilesModal" role="dialog" aria-modal="true" aria-labelledby="noFilesTitle">
+    <div class="modal-card dark nf-card">
+      <button class="modal-close" id="noFilesClose" aria-label="Cerrar"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      <div class="nf-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M3 7l9 4 9-4M12 11v10" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+      </div>
+      <h2 id="noFilesTitle">Aún no hay archivos</h2>
+      <p class="sub">Todavía no hay archivos de estampar para <strong id="noFilesDrop"></strong>. Si los quieres, escríbenos y te los preparamos.</p>
+      <div class="nf-actions">
+        <button type="button" id="noFilesCancel">Cerrar</button>
+        <button type="button" class="nf-primary" id="noFilesContact">Contactar
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+    var $ = function (s, r) { return (r || document).querySelector(s); };
+    var grid = $('#grid');
+
+    function thumb(url, w) {
+      if (!url || url.indexOf('res.cloudinary.com') === -1) return url;
+      return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + (w || 420) + '/');
+    }
+    function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+    function shortDrop(d) { return (d || '').replace(/^\(\d{4}\)\s*/, ''); }
+    function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+    /* ───────── state ───────── */
+    var DATA = { gallery: [], prints: [] };
+    var printsByName = {};
+    var dropsMap = {};
+    var DROPS = [];
+    var collectionFilter = null, textFilter = '';
+
+    // Admin state comes from the backend session cookie (set at boot via /api/admin/session).
+    var isAdmin = false;
+
+    var saveT = null;
+    function scheduleSave() {
+      var st = document.querySelector('#edStatus'); if (st) st.textContent = 'Cambios sin guardar…';
+      clearTimeout(saveT); saveT = setTimeout(saveDropsToServer, 500);
+    }
+    function saveDropsToServer() {
+      var st = document.querySelector('#edStatus'); if (st) st.textContent = 'Guardando…';
+      fetch('/api/drops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dropsMap) })
+        .then(function (r) { if (r.status === 401) throw new Error('401'); if (!r.ok) throw new Error('save'); return r.json(); })
+        .then(function () { if (st) st.textContent = 'Guardado ✓'; refreshCounts(); })
+        .catch(function (ex) { if (st) st.textContent = ex.message === '401' ? 'Sesión caducada — vuelve a entrar' : 'Error al guardar'; });
+    }
+    function filesForDrop(d) { return ((dropsMap[d] || [])).map(function (n) { return printsByName[n]; }).filter(Boolean); }
+
+    /* ───────── toast ───────── */
+    var toastEl = $('#toast'), toastT;
+    function toast(msg) { toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function () { toastEl.classList.remove('show'); }, 2400); }
+
+    /* ───────── grid ───────── */
+    function buildGrid() {
+      var frag = document.createDocumentFragment();
+      DATA.gallery.forEach(function (f) {
+        var card = document.createElement('article');
+        card.className = 'card';
+        card.draggable = true;
+        card.dataset.drop = f.drop;
+        card.dataset.search = (f.name + ' ' + f.drop).toLowerCase();
+
+        var img = document.createElement('img');
+        img.loading = 'lazy'; img.decoding = 'async'; img.alt = f.drop; img.src = thumb(f.url);
+
+        var veil = document.createElement('div'); veil.className = 'veil';
+        var cap = document.createElement('div'); cap.className = 'cap';
+        var add = document.createElement('button');
+        add.className = 'add'; add.type = 'button';
+        add.innerHTML = '<svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M7.5 2v11M2 7.5h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Add</span>';
+
+        card.appendChild(img); card.appendChild(veil); card.appendChild(cap); card.appendChild(add);
+        frag.appendChild(card);
+      });
+      var empty = document.createElement('div');
+      empty.className = 'empty'; empty.id = 'emptyState'; empty.style.display = 'none';
+      empty.textContent = 'No se encontraron fotos.';
+      grid.innerHTML = ''; grid.appendChild(frag); grid.appendChild(empty);
+      refreshCounts();
+    }
+
+    function refreshCounts() {
+      var cards = grid.querySelectorAll('.card');
+      for (var i = 0; i < cards.length; i++) {
+        var d = cards[i].dataset.drop;
+        var n = filesForDrop(d).length;
+        var cap = cards[i].querySelector('.cap');
+        if (cap) cap.textContent = shortDrop(d) + ' · ' + n + (n === 1 ? ' archivo' : ' archivos');
+        cards[i].classList.toggle('nofiles', n === 0);
+      }
+    }
+
+    function applyFilter() {
+      var cards = grid.querySelectorAll('.card'), shown = 0;
+      for (var i = 0; i < cards.length; i++) {
+        var c = cards[i];
+        var okCol = !collectionFilter || c.dataset.drop === collectionFilter;
+        var okTxt = !textFilter || c.dataset.search.indexOf(textFilter) !== -1;
+        var vis = okCol && okTxt;
+        c.classList.toggle('hidden', !vis);
+        if (vis) shown++;
+      }
+      var es = $('#emptyState'); if (es) es.style.display = shown ? 'none' : 'block';
+    }
+
+    /* ───────── drop popover (filter the gallery) ───────── */
+    var popover = $('#popover'), chip = $('#chip'), chipLabel = $('#chipLabel'), searchInput = $('#search');
+    function buildPopover() {
+      var counts = {};
+      DATA.gallery.forEach(function (f) { counts[f.drop] = (counts[f.drop] || 0) + 1; });
+      var html = '<div class="ph">Drops</div><button class="opt" data-col="" role="option"><span>Todos los drops</span><span class="count">' + DATA.gallery.length + '</span></button>';
+      DROPS.forEach(function (n) { html += '<button class="opt" data-col="' + encodeURIComponent(n) + '" role="option"><span>' + n + '</span><span class="count">' + (counts[n] || 0) + '</span></button>'; });
+      popover.innerHTML = html; refreshPopoverActive();
+    }
+    function refreshPopoverActive() {
+      var opts = popover.querySelectorAll('.opt');
+      for (var i = 0; i < opts.length; i++) { var col = decodeURIComponent(opts[i].dataset.col || ''); opts[i].classList.toggle('active', col === (collectionFilter || '')); }
+    }
+    function setCollection(name) {
+      collectionFilter = name || null;
+      if (collectionFilter) { chipLabel.textContent = shortDrop(collectionFilter); chip.classList.add('show'); } else { chip.classList.remove('show'); }
+      refreshPopoverActive(); applyFilter();
+    }
+    function openPopover() { buildPopover(); popover.classList.add('open'); }
+    function closePopover() { popover.classList.remove('open'); }
+    searchInput.addEventListener('focus', openPopover);
+    searchInput.addEventListener('input', function () { textFilter = searchInput.value.trim().toLowerCase(); applyFilter(); });
+    popover.addEventListener('mousedown', function (e) { var o = e.target.closest('.opt'); if (!o) return; e.preventDefault(); setCollection(decodeURIComponent(o.dataset.col || '')); closePopover(); searchInput.blur(); });
+    $('#chipClear').addEventListener('click', function () { setCollection(null); });
+    document.addEventListener('click', function (e) { if (!e.target.closest('.search-wrap')) closePopover(); });
+
+    /* ───────── basket + folder ───────── */
+    var basket = [];
+    var folder = $('#folder'), folderBadge = $('#folderBadge'), tray = $('#tray'), trayBody = $('#trayBody'), trayCount = $('#trayCount');
+    function inBasket(url) { return basket.some(function (b) { return b.url === url; }); }
+
+    function addDropToBasket(drop) {
+      var files = filesForDrop(drop);
+      if (!files.length) {
+        if (isAdmin) toast('“' + shortDrop(drop) + '” no tiene archivos de estampar. Asígnalos en Drops.');
+        else showNoFiles(drop);
+        return 0;
+      }
+      var added = 0;
+      files.forEach(function (p) { if (!inBasket(p.url)) { basket.push({ name: p.name, url: p.url, group: p.group, drop: drop }); added++; } });
+      renderBasket(); pulseFolder();
+      if (added) toast('Añadidos ' + added + ' archivo' + (added === 1 ? '' : 's') + ' de ' + shortDrop(drop)); else toast('Ya estaban en la carpeta');
+      return added;
+    }
+    function removeFromBasket(url) { basket = basket.filter(function (b) { return b.url !== url; }); renderBasket(); }
+
+    function renderBasket() {
+      folderBadge.textContent = basket.length;
+      folderBadge.classList.toggle('show', basket.length > 0);
+      trayCount.textContent = basket.length;
+      if (!basket.length) { trayBody.innerHTML = '<div class="tray-empty">Arrastra una foto aquí (o pulsa “＋ Add”). Se añadirán los archivos de estampar de su drop, y podrás quitarlos uno a uno.</div>'; return; }
+      var groups = {}, order = [];
+      basket.forEach(function (b) { if (!groups[b.drop]) { groups[b.drop] = []; order.push(b.drop); } groups[b.drop].push(b); });
+      var html = '';
+      order.forEach(function (drop) {
+        html += '<div class="tray-group"><div class="tray-group-head">' + shortDrop(drop) + ' (' + groups[drop].length + ')</div>';
+        groups[drop].forEach(function (b) {
+          html += '<div class="tray-item"><div class="pthumb checker"><img src="' + thumb(b.url, 120) + '" alt=""></div>' +
+                  '<span class="nm" title="' + b.name + '">' + b.name + '</span>' +
+                  '<button class="rm" type="button" data-url="' + encodeURIComponent(b.url) + '" aria-label="Quitar">&times;</button></div>';
+        });
+        html += '</div>';
+      });
+      trayBody.innerHTML = html;
+    }
+    trayBody.addEventListener('click', function (e) { var b = e.target.closest('button[data-url]'); if (b) removeFromBasket(decodeURIComponent(b.dataset.url)); });
+
+    var pulseT;
+    function pulseFolder() { folder.classList.add('drag'); clearTimeout(pulseT); pulseT = setTimeout(function () { folder.classList.remove('drag'); }, 220); }
+    function openTray() { tray.classList.add('open'); }
+    function closeTray() { tray.classList.remove('open'); }
+    folder.addEventListener('click', function () { tray.classList.toggle('open'); });
+    folder.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tray.classList.toggle('open'); } });
+    $('#trayClear').addEventListener('click', function () { basket = []; renderBasket(); });
+
+    grid.addEventListener('dragstart', function (e) { var card = e.target.closest('.card'); if (!card) return; e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', JSON.stringify({ drop: card.dataset.drop })); });
+    grid.addEventListener('click', function (e) {
+      var btn = e.target.closest('.add'); if (!btn) return;
+      var card = btn.closest('.card');
+      var added = addDropToBasket(card.dataset.drop);
+      if (added) { btn.classList.add('added'); setTimeout(function () { btn.classList.remove('added'); }, 700); }
+    });
+    folder.addEventListener('dragover', function (e) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; folder.classList.add('drag'); });
+    folder.addEventListener('dragleave', function () { folder.classList.remove('drag'); });
+    folder.addEventListener('drop', function (e) {
+      e.preventDefault(); folder.classList.remove('drag');
+      try { var d = e.dataTransfer.getData('text/plain'); if (d) { var o = JSON.parse(d); if (o.drop) { if (addDropToBasket(o.drop)) openTray(); } } } catch (err) {}
+    });
+
+    /* ───────── zip ───────── */
+    var dlBtn = $('#downloadZip'), zipping = false;
+    dlBtn.addEventListener('click', function () {
+      if (zipping || !basket.length) return;
+      if (typeof JSZip === 'undefined') { toast('El zip aún se está cargando, prueba otra vez.'); return; }
+      zipping = true; dlBtn.disabled = true; dlBtn.textContent = 'Empaquetando…';
+      var zip = new JSZip(), used = {};
+      Promise.all(basket.map(function (file) {
+        return fetch(file.url).then(function (r) { return r.blob(); }).then(function (blob) {
+          var name = file.name;
+          while (used[name]) { var dot = name.lastIndexOf('.'); name = dot > 0 ? name.slice(0, dot) + '-2' + name.slice(dot) : name + '-2'; }
+          used[name] = true; zip.file(name, blob);
+        });
+      })).then(function () { return zip.generateAsync({ type: 'blob' }); }).then(function (out) {
+        var url = URL.createObjectURL(out), a = document.createElement('a');
+        a.href = url; a.download = 'fatrap-files-' + Date.now() + '.zip';
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      }).catch(function (err) { console.error('Zip failed', err); toast('No se pudo generar el zip.'); })
+        .finally(function () { zipping = false; dlBtn.disabled = false; dlBtn.textContent = 'Descargar .zip'; });
+    });
+
+    /* ───────── editor ───────── */
+    var editorModal = $('#editorModal'), edDrop = $('#edDrop'), edList = $('#edList'), edAssigned = $('#edAssigned');
+    function openEditor() {
+      if (!edDrop.options.length) { edDrop.innerHTML = DROPS.map(function (d) { return '<option value="' + encodeURIComponent(d) + '">' + d + '</option>'; }).join(''); }
+      renderEdList(); editorModal.classList.add('open');
+    }
+    function closeEditor() { editorModal.classList.remove('open'); refreshCounts(); }
+    function currentEdDrop() { return decodeURIComponent(edDrop.value || ''); }
+    function renderEdList() {
+      var drop = currentEdDrop(), assigned = dropsMap[drop] || [];
+      edAssigned.textContent = assigned.length + ' asignado' + (assigned.length === 1 ? '' : 's');
+      var byGroup = {}, order = [];
+      DATA.prints.forEach(function (p) { if (!byGroup[p.group]) { byGroup[p.group] = []; order.push(p.group); } byGroup[p.group].push(p); });
+      var html = '';
+      order.forEach(function (g) {
+        html += '<div class="ed-group-label">' + g + '</div>';
+        byGroup[g].forEach(function (p) {
+          var on = assigned.indexOf(p.name) !== -1;
+          html += '<label class="ed-item' + (on ? ' on' : '') + '" data-name="' + encodeURIComponent(p.name) + '">' +
+                    '<input type="checkbox"' + (on ? ' checked' : '') + '>' +
+                    '<div class="pthumb checker"><img src="' + thumb(p.url, 120) + '" alt=""></div>' +
+                    '<span class="nm" title="' + p.name + '">' + p.name + '</span></label>';
+        });
+      });
+      edList.innerHTML = html;
+    }
+    edDrop.addEventListener('change', renderEdList);
+    edList.addEventListener('change', function (e) {
+      var item = e.target.closest('.ed-item'); if (!item) return;
+      var drop = currentEdDrop(), name = decodeURIComponent(item.dataset.name);
+      if (!dropsMap[drop]) dropsMap[drop] = [];
+      var arr = dropsMap[drop], idx = arr.indexOf(name);
+      if (e.target.checked) { if (idx === -1) arr.push(name); } else { if (idx !== -1) arr.splice(idx, 1); }
+      item.classList.toggle('on', e.target.checked);
+      edAssigned.textContent = arr.length + ' asignado' + (arr.length === 1 ? '' : 's');
+      scheduleSave();
+    });
+    $('#editOpen').addEventListener('click', function () { if (isAdmin) openEditor(); });
+    $('#editorClose').addEventListener('click', closeEditor);
+    $('#edDone').addEventListener('click', closeEditor);
+    editorModal.addEventListener('click', function (e) { if (e.target === editorModal) closeEditor(); });
+    $('#edReset').addEventListener('click', function () { fetch('/api/drops').then(function (r) { return r.json(); }).then(function (m) { dropsMap = m || {}; renderEdList(); refreshCounts(); var st = $('#edStatus'); if (st) st.textContent = 'Recargado del servidor'; }); });
+    $('#edExport').addEventListener('click', function () {
+      var blob = new Blob([JSON.stringify(dropsMap, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = 'drops.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      toast('drops.json exportado');
+    });
+    $('#edImport').addEventListener('click', function () { $('#edFile').click(); });
+    $('#edFile').addEventListener('change', function (e) {
+      var file = e.target.files && e.target.files[0]; if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () { try { dropsMap = JSON.parse(reader.result); renderEdList(); scheduleSave(); toast('Relación importada'); } catch (err) { toast('JSON inválido'); } };
+      reader.readAsText(file); e.target.value = '';
+    });
+
+    /* ───────── admin login (password) ───────── */
+    var adminModal = $('#adminModal');
+    function openAdminModal() { $('#adminError').style.display = 'none'; adminModal.classList.add('open'); setTimeout(function () { var p = $('#adminPass'); if (p) { p.value = ''; p.focus(); } }, 60); }
+    function closeAdmin() { adminModal.classList.remove('open'); }
+    function enableAdmin() { isAdmin = true; document.body.classList.add('admin'); }
+    function disableAdmin() { isAdmin = false; document.body.classList.remove('admin'); }
+    $('.brand').addEventListener('click', function () { if (!isAdmin) openAdminModal(); });
+    $('#adminClose').addEventListener('click', closeAdmin);
+    adminModal.addEventListener('click', function (e) { if (e.target === adminModal) closeAdmin(); });
+    $('#adminForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var pass = $('#adminPass').value;
+      var btn = $('#adminSubmit'); var orig = btn.textContent; btn.disabled = true; btn.textContent = 'Entrando…';
+      $('#adminError').style.display = 'none';
+      fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pass }) })
+        .then(function (r) { return r.ok ? r.json() : r.json().then(function (d) { throw new Error((d && d.error) || 'Error'); }); })
+        .then(function () { enableAdmin(); closeAdmin(); toast('Modo admin activado'); })
+        .catch(function (ex) { var er = $('#adminError'); er.textContent = ex.message || 'Contraseña incorrecta.'; er.style.display = 'block'; $('#adminPass').value = ''; $('#adminPass').focus(); })
+        .finally(function () { btn.disabled = false; btn.textContent = orig; });
+    });
+    $('#edLogout').addEventListener('click', function () { fetch('/api/admin/logout', { method: 'POST' }).finally(function () { disableAdmin(); closeEditor(); toast('Has salido del modo admin'); }); });
+
+    /* ───────── contact ───────── */
+    var modal = $('#contactModal'), contactBody = $('#contactBody'), originalFormHTML = contactBody.innerHTML;
+    function openModal() { modal.classList.add('open'); setTimeout(function () { var n = $('#cName'); if (n) n.focus(); }, 60); }
+    function closeModal() { modal.classList.remove('open'); }
+    $('#contactOpen').addEventListener('click', openModal);
+    $('#contactClose').addEventListener('click', closeModal);
+    modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeModal(); closeEditor(); closePopover(); closeTray(); closeNoFiles(); closeAdmin(); } });
+
+    function bindForm() { var f = $('#contactForm'); if (f) f.addEventListener('submit', onSubmit); }
+    function onSubmit(e) {
+      e.preventDefault(); var f = e.target;
+      var payload = { name: f.name.value.trim(), email: f.email.value.trim(), subject: f.subject.value.trim(), message: f.message.value.trim() };
+      var err = $('#formError'), btn = $('#contactSubmit');
+      if (!payload.name || !payload.email || !payload.message) { err.style.display = 'block'; err.textContent = 'Name, email and message are required.'; return; }
+      err.style.display = 'none'; btn.disabled = true;
+      btn.innerHTML = '<svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity=".25"/><path d="M4 12a8 8 0 0 1 8-8" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg> Sending...';
+      fetch('/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(function (res) { if (res.ok) showSuccess(); else return res.json().then(function (d) { throw new Error((d && d.error) || 'Something went wrong.'); }); })
+        .catch(function (ex) { var e2 = $('#formError'); if (e2) { e2.style.display = 'block'; e2.textContent = ex.message || 'Could not connect to the server.'; } var b2 = $('#contactSubmit'); if (b2) { b2.disabled = false; b2.textContent = 'Send message'; } });
+    }
+    function showSuccess() {
+      contactBody.innerHTML = '<div class="form-success"><div class="ok"><svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 11l5 5L18 6" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><p class="t">Message sent!</p><p class="d">We\'ll get back to you soon.</p><button type="button" id="resetForm">Send another message</button></div>';
+      $('#resetForm').addEventListener('click', function () { contactBody.innerHTML = originalFormHTML; bindForm(); });
+    }
+    bindForm();
+
+    /* ───────── no-files dialog ───────── */
+    var noFilesModal = $('#noFilesModal');
+    function closeNoFiles() { noFilesModal.classList.remove('open'); }
+    function showNoFiles(drop) {
+      $('#noFilesDrop').textContent = '“' + shortDrop(drop) + '”';
+      noFilesModal.dataset.drop = drop;
+      noFilesModal.classList.add('open');
+    }
+    $('#noFilesClose').addEventListener('click', closeNoFiles);
+    $('#noFilesCancel').addEventListener('click', closeNoFiles);
+    noFilesModal.addEventListener('click', function (e) { if (e.target === noFilesModal) closeNoFiles(); });
+    $('#noFilesContact').addEventListener('click', function () {
+      var drop = noFilesModal.dataset.drop || '';
+      closeNoFiles();
+      if (!$('#cSubject')) { contactBody.innerHTML = originalFormHTML; bindForm(); } // restore form if it was in success state
+      openModal();
+      var subj = $('#cSubject'), msg = $('#cMessage');
+      if (subj) subj.value = 'Archivos de estampar — ' + shortDrop(drop);
+      if (msg) msg.value = 'Hola! Me gustaría los archivos de estampar del drop “' + shortDrop(drop) + '”. ¿Me los podéis preparar?';
+    });
+
+    /* ───────── boot ───────── */
+    Promise.all([
+      fetch('/fatrap-data.json').then(function (r) { return r.json(); }),
+      fetch('/api/drops').then(function (r) { return r.json(); }).catch(function () { return {}; }),
+      fetch('/api/admin/session').then(function (r) { return r.json(); }).catch(function () { return { admin: false }; })
+    ]).then(function (res) {
+      DATA = res[0];
+      dropsMap = res[1] || {};
+      isAdmin = !!(res[2] && res[2].admin);
+      if (isAdmin) document.body.classList.add('admin');
+      printsByName = {}; DATA.prints.forEach(function (p) { printsByName[p.name] = p; });
+      DATA.gallery = shuffle(DATA.gallery.slice());
+      DROPS = Object.keys(DATA.gallery.reduce(function (m, g) { m[g.drop] = 1; return m; }, {})).sort();
+      buildGrid(); applyFilter();
+      var l = $('#loading'); if (l) l.remove();
+    }).catch(function (err) { console.error('Load failed', err); var l = $('#loading'); if (l) l.textContent = 'No se pudieron cargar los datos.'; });
+
+    renderBasket();
+  })();
+  </script>
+</body>
+</html>

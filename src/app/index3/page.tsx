@@ -5,7 +5,7 @@ import WindowFrame from '@/components/WindowFrame'
 import ContactForm from '@/components/ContactForm'
 import HomePage from '@/components/HomePage'
 import Explorer, { ExplorerSection, ExplorerFile } from '@/components/Explorer'
-import cloudinaryUrls from '../../scripts/cloudinary-urls.json'
+import cloudinaryUrls from '../../../scripts/cloudinary-urls.json'
 
 // Group gallery files by their galleryPath so we can inject them into each leaf below
 const galleryByPath: Record<string, ExplorerFile[]> = {}

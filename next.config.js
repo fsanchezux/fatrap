@@ -10,6 +10,15 @@ const nextConfig = {
       },
     ],
   },
+  // Serve the new index2.html moodboard UI at the site root ("/").
+  // The old Next.js home now lives at /index3.
+  async rewrites() {
+    return {
+      beforeFiles: [
+        { source: '/', destination: '/index2.html' },
+      ],
+    }
+  },
 }
 
 module.exports = nextConfig
