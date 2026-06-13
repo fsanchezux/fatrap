@@ -55,11 +55,13 @@
       pointer-events: auto; width: min(680px, 100%);
       display: flex; align-items: center; gap: 14px;
       background: var(--panel); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      border: 1px solid var(--line); border-radius: 999px;
+      border: 0; border-radius: 999px;
       padding: 8px 10px 8px 18px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      transition: background .3s ease;
     }
-    .brand { height: 26px; width: auto; flex-shrink: 0; display: block; user-select: none; cursor: pointer; }
-    @media (max-width: 600px) { .brand { height: 22px; } }
+    .pill.scrolled { background: rgba(0, 0, 0, 0.92); }
+    .brand { height: 20px; width: auto; flex-shrink: 0; display: block; user-select: none; }
+    @media (max-width: 600px) { .brand { height: 20px; } }
 
     .search-wrap { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; }
     .search-icon { position: absolute; left: 12px; width: 15px; height: 15px; color: var(--muted); pointer-events: none; }
@@ -99,7 +101,7 @@
     @media (max-width: 900px)  { #grid { column-count: 3; } }
     @media (max-width: 600px)  { #grid { column-count: 2; --gap: 8px; } }
 
-    .card { position: relative; break-inside: avoid; margin-bottom: var(--gap); border-radius: 7px; overflow: hidden; background: #161616; cursor: grab; transition: transform .2s ease, box-shadow .2s ease; }
+    .card { position: relative; break-inside: avoid; margin-bottom: var(--gap); border-radius: 7px; overflow: hidden; background: #161616; cursor: grab; transition: transform .2s ease, box-shadow .2s ease, filter .3s ease, opacity .3s ease; }
     .card:active { cursor: grabbing; }
     .card.hidden { display: none; }
     .card img { width: 100%; display: block; min-height: 60px; }
@@ -114,6 +116,20 @@
     .add:hover { background: var(--accent); color: #111; border-color: var(--accent); }
     .add.added { background: var(--accent); color: #111; border-color: var(--accent); opacity: 1; transform: scale(1); }
     @media (hover: none) { .add { opacity: .92; transform: scale(1); } .card .cap { opacity: .9; } }
+
+    /* ─────────────── Custom drag state ─────────────── */
+    #grid.is-dragging .card:not(.drag-source) { filter: blur(12px) brightness(0.5); opacity: .25; pointer-events: none; }
+    #grid.is-dragging .card.drag-source { box-shadow: 0 0 0 3px var(--accent), 0 20px 50px rgba(0,0,0,.7); transform: scale(1.02); z-index: 10; }
+    .drag-ghost {
+      position: fixed; z-index: 1000; pointer-events: none;
+      width: 120px; border-radius: 10px; overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0,0,0,.7);
+      transform: translate(-50%, -50%) scale(1.05);
+      transition: transform .1s ease;
+    }
+    .drag-ghost img { width: 100%; display: block; }
+    .folder.drag-active { transform: scale(1.2); }
+    .folder.drag-active .folder-front { fill: var(--accent); }
 
     .empty { column-span: all; text-align: center; color: var(--muted); padding: 80px 20px; font-size: 15px; }
 
@@ -147,6 +163,8 @@
     .tray-head .clear:hover { color: #fff; }
     .tray-body { max-height: 46vh; overflow-y: auto; margin-bottom: 12px; }
     .tray-empty { color: var(--muted); font-size: 13px; padding: 10px 2px 14px; line-height: 1.5; }
+    .tray-mockup { width: 100%; aspect-ratio: 1; border-radius: 10px; overflow: hidden; margin-bottom: 8px; background: #222; }
+    .tray-mockup img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .tray-group { margin-bottom: 10px; }
     .tray-group-head { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); margin: 6px 2px 6px; }
     .tray-item { display: flex; align-items: center; gap: 10px; padding: 5px; border-radius: 9px; }
@@ -156,10 +174,13 @@
     .tray-item .nm { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .tray-item .rm { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 4px; flex-shrink: 0; }
     .tray-item .rm:hover { color: #ff7a7a; }
+    .tray-actions { display: flex; flex-direction: column; gap: 8px; }
     .dl { width: 100%; padding: 11px; border: 0; border-radius: 999px; background: var(--accent); color: #111; font-weight: 600; font-size: 14px; cursor: pointer; transition: filter .15s ease, transform .1s ease; }
     .dl:hover { filter: brightness(1.06); }
     .dl:active { transform: scale(.98); }
     .dl:disabled { opacity: .6; cursor: wait; }
+    .dl-email { background: #fff; color: #111; }
+    .dl-email:hover { background: #e9e9e3; }
 
     /* ─────────────── Toast ─────────────── */
     .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 16px); z-index: 70; background: #2b2b2b; color: #fff; border: 1px solid var(--line); padding: 10px 16px; border-radius: 999px; font-size: 13px; box-shadow: 0 12px 30px rgba(0,0,0,.5); opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease; max-width: calc(100vw - 36px); }
@@ -279,7 +300,25 @@
       <button class="clear" id="trayClear">Vaciar</button>
     </div>
     <div class="tray-body" id="trayBody"></div>
-    <button class="dl" id="downloadZip">Descargar .zip</button>
+    <div class="tray-actions">
+      <button class="dl" id="downloadZip">Descargar .zip</button>
+      <button class="dl dl-email" id="sendEmail">Enviar por email</button>
+    </div>
+  </div>
+
+  <!-- ───── Send email modal ───── -->
+  <div class="modal" id="emailModal" role="dialog" aria-modal="true" aria-labelledby="emailTitle">
+    <div class="modal-card">
+      <button class="modal-close" id="emailClose" aria-label="Cerrar"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      <h2 id="emailTitle">Enviar por email</h2>
+      <p class="sub">Introduce el correo al que quieres enviar el .zip con los archivos.</p>
+      <form id="emailForm" novalidate>
+        <div class="field"><label for="eEmail">Email *</label><input id="eEmail" name="email" type="email" required placeholder="tu@email.com" /></div>
+        <div id="emailError" class="form-msg err" style="display:none"></div>
+        <div id="emailSuccess" class="form-msg ok" style="display:none">Email enviado correctamente.</div>
+        <button class="submit" id="emailSubmit" type="submit">Enviar</button>
+      </form>
+    </div>
   </div>
 
   <!-- ───── Folder drop zone ───── -->
@@ -499,14 +538,19 @@
     var folder = $('#folder'), folderBadge = $('#folderBadge'), tray = $('#tray'), trayBody = $('#trayBody'), trayCount = $('#trayCount');
     function inBasket(url) { return basket.some(function (b) { return b.url === url; }); }
 
-    function addDropToBasket(drop) {
+    function addDropToBasket(drop, mockupUrl) {
       var files = filesForDrop(drop);
       if (!files.length) {
-        if (isAdmin) toast('“' + shortDrop(drop) + '” no tiene archivos de estampar. Asígnalos en Drops.');
+        if (isAdmin) toast('"' + shortDrop(drop) + '" no tiene archivos de estampar. Asígnalos en Drops.');
         else showNoFiles(drop);
         return 0;
       }
       var added = 0;
+      if (mockupUrl && !inBasket(mockupUrl)) {
+        var photoName = 'mockup_' + shortDrop(drop).replace(/[^a-z0-9]/gi, '_') + '.jpg';
+        basket.push({ name: photoName, url: mockupUrl, group: 'Mockup', drop: drop, isPhoto: true });
+        added++;
+      }
       files.forEach(function (p) { if (!inBasket(p.url)) { basket.push({ name: p.name, url: p.url, group: p.group, drop: drop }); added++; } });
       renderBasket(); pulseFolder();
       if (added) toast('Añadidos ' + added + ' archivo' + (added === 1 ? '' : 's') + ' de ' + shortDrop(drop)); else toast('Ya estaban en la carpeta');
@@ -518,9 +562,12 @@
       folderBadge.textContent = basket.length;
       folderBadge.classList.toggle('show', basket.length > 0);
       trayCount.textContent = basket.length;
-      if (!basket.length) { trayBody.innerHTML = '<div class="tray-empty">Arrastra una foto aquí (o pulsa “＋ Add”). Se añadirán los archivos de estampar de su drop, y podrás quitarlos uno a uno.</div>'; return; }
+      if (!basket.length) { trayBody.innerHTML = '<div class="tray-empty">Arrastra una foto aquí (o pulsa "＋ Add"). Se añadirán los archivos de estampar de su drop, y podrás quitarlos uno a uno.</div>'; return; }
       var groups = {}, order = [];
-      basket.forEach(function (b) { if (!groups[b.drop]) { groups[b.drop] = []; order.push(b.drop); } groups[b.drop].push(b); });
+      basket.forEach(function (b) {
+        if (!groups[b.drop]) { groups[b.drop] = []; order.push(b.drop); }
+        groups[b.drop].push(b);
+      });
       var html = '';
       order.forEach(function (drop) {
         html += '<div class="tray-group"><div class="tray-group-head">' + shortDrop(drop) + ' (' + groups[drop].length + ')</div>';
@@ -543,19 +590,84 @@
     folder.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tray.classList.toggle('open'); } });
     $('#trayClear').addEventListener('click', function () { basket = []; renderBasket(); });
 
-    grid.addEventListener('dragstart', function (e) { var card = e.target.closest('.card'); if (!card) return; e.dataTransfer.effectAllowed = 'copy'; e.dataTransfer.setData('text/plain', JSON.stringify({ drop: card.dataset.drop })); });
+    grid.addEventListener('dragstart', function (e) { e.preventDefault(); });
+
+    /* ───────── custom drag (desktop) ───────── */
+    var dragState = null;
+    var ghostEl = null;
+
+    function startCustomDrag(card, clientX, clientY) {
+      var drop = card.dataset.drop;
+      var img = card.querySelector('img');
+      if (!img) return;
+      dragState = { card: card, drop: drop, url: img.src };
+      card.classList.add('drag-source');
+      grid.classList.add('is-dragging');
+      ghostEl = document.createElement('div');
+      ghostEl.className = 'drag-ghost';
+      var gImg = document.createElement('img');
+      gImg.src = thumb(img.src, 240);
+      ghostEl.appendChild(gImg);
+      document.body.appendChild(ghostEl);
+      moveGhost(clientX, clientY);
+    }
+    function moveGhost(x, y) {
+      if (!ghostEl) return;
+      ghostEl.style.left = x + 'px';
+      ghostEl.style.top = y + 'px';
+    }
+    function isOverFolder(x, y) {
+      var r = folder.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    }
+    function endCustomDrag(clientX, clientY) {
+      if (!dragState) return;
+      if (isOverFolder(clientX, clientY)) {
+        if (addDropToBasket(dragState.drop, dragState.url)) {
+          openTray();
+          var btn = dragState.card.querySelector('.add');
+          if (btn) { btn.classList.add('added'); setTimeout(function () { btn.classList.remove('added'); }, 700); }
+        }
+      }
+      cleanupDrag();
+    }
+    function cleanupDrag() {
+      if (dragState) {
+        dragState.card.classList.remove('drag-source');
+        dragState = null;
+      }
+      grid.classList.remove('is-dragging');
+      folder.classList.remove('drag-active');
+      if (ghostEl) { ghostEl.remove(); ghostEl = null; }
+    }
+
+    grid.addEventListener('mousedown', function (e) {
+      if (e.button !== 0) return;
+      var card = e.target.closest('.card');
+      if (!card || e.target.closest('.add')) return;
+      e.preventDefault();
+      startCustomDrag(card, e.clientX, e.clientY);
+    });
+    document.addEventListener('mousemove', function (e) {
+      if (!dragState) return;
+      moveGhost(e.clientX, e.clientY);
+      if (isOverFolder(e.clientX, e.clientY)) folder.classList.add('drag-active');
+      else folder.classList.remove('drag-active');
+    });
+    document.addEventListener('mouseup', function (e) {
+      if (!dragState) return;
+      endCustomDrag(e.clientX, e.clientY);
+    });
     grid.addEventListener('click', function (e) {
       var btn = e.target.closest('.add'); if (!btn) return;
       var card = btn.closest('.card');
-      var added = addDropToBasket(card.dataset.drop);
+      var img = card.querySelector('img');
+      var mockupUrl = img ? img.src : null;
+      var added = addDropToBasket(card.dataset.drop, mockupUrl);
       if (added) { btn.classList.add('added'); setTimeout(function () { btn.classList.remove('added'); }, 700); }
     });
-    folder.addEventListener('dragover', function (e) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; folder.classList.add('drag'); });
-    folder.addEventListener('dragleave', function () { folder.classList.remove('drag'); });
-    folder.addEventListener('drop', function (e) {
-      e.preventDefault(); folder.classList.remove('drag');
-      try { var d = e.dataTransfer.getData('text/plain'); if (d) { var o = JSON.parse(d); if (o.drop) { if (addDropToBasket(o.drop)) openTray(); } } } catch (err) {}
-    });
+    folder.addEventListener('dragover', function (e) { e.preventDefault(); });
+    folder.addEventListener('drop', function (e) { e.preventDefault(); });
 
     /* ───────── zip ───────── */
     var dlBtn = $('#downloadZip'), zipping = false;
@@ -576,6 +688,41 @@
         document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
       }).catch(function (err) { console.error('Zip failed', err); toast('No se pudo generar el zip.'); })
         .finally(function () { zipping = false; dlBtn.disabled = false; dlBtn.textContent = 'Descargar .zip'; });
+    });
+
+    /* ───────── send email ───────── */
+    var emailModal = $('#emailModal'), emailSending = false;
+    function openEmailModal() {
+      if (!basket.length) return;
+      $('#emailError').style.display = 'none';
+      $('#emailSuccess').style.display = 'none';
+      $('#eEmail').value = '';
+      emailModal.classList.add('open');
+      setTimeout(function () { $('#eEmail').focus(); }, 60);
+    }
+    function closeEmailModal() { emailModal.classList.remove('open'); }
+    $('#sendEmail').addEventListener('click', openEmailModal);
+    $('#emailClose').addEventListener('click', closeEmailModal);
+    emailModal.addEventListener('click', function (e) { if (e.target === emailModal) closeEmailModal(); });
+    $('#emailForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (emailSending) return;
+      var email = $('#eEmail').value.trim();
+      var errEl = $('#emailError'), okEl = $('#emailSuccess'), btn = $('#emailSubmit');
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errEl.textContent = 'Introduce un email válido.'; errEl.style.display = 'block'; return;
+      }
+      emailSending = true; btn.disabled = true; btn.textContent = 'Enviando…';
+      errEl.style.display = 'none'; okEl.style.display = 'none';
+      var files = basket.map(function (b) { return { name: b.name, url: b.url }; });
+      fetch('/api/send-zip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: email, files: files }) })
+        .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Error'); return d; }); })
+        .then(function () {
+          okEl.style.display = 'block';
+          setTimeout(closeEmailModal, 2000);
+        })
+        .catch(function (err) { errEl.textContent = err.message || 'No se pudo enviar.'; errEl.style.display = 'block'; })
+        .finally(function () { emailSending = false; btn.disabled = false; btn.textContent = 'Enviar'; });
     });
 
     /* ───────── editor ───────── */
@@ -640,7 +787,11 @@
     function closeAdmin() { adminModal.classList.remove('open'); }
     function enableAdmin() { isAdmin = true; document.body.classList.add('admin'); }
     function disableAdmin() { isAdmin = false; document.body.classList.remove('admin'); }
-    $('.brand').addEventListener('click', function () { if (!isAdmin) openAdminModal(); });
+    // Admin entry is URL-only (handled in boot): the logo no longer opens the login.
+    function doLogin(pass) {
+      return fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pass }) })
+        .then(function (r) { return r.ok ? r.json() : r.json().then(function (d) { throw new Error((d && d.error) || 'Error'); }); });
+    }
     $('#adminClose').addEventListener('click', closeAdmin);
     adminModal.addEventListener('click', function (e) { if (e.target === adminModal) closeAdmin(); });
     $('#adminForm').addEventListener('submit', function (e) {
@@ -648,8 +799,7 @@
       var pass = $('#adminPass').value;
       var btn = $('#adminSubmit'); var orig = btn.textContent; btn.disabled = true; btn.textContent = 'Entrando…';
       $('#adminError').style.display = 'none';
-      fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pass }) })
-        .then(function (r) { return r.ok ? r.json() : r.json().then(function (d) { throw new Error((d && d.error) || 'Error'); }); })
+      doLogin(pass)
         .then(function () { enableAdmin(); closeAdmin(); toast('Modo admin activado'); })
         .catch(function (ex) { var er = $('#adminError'); er.textContent = ex.message || 'Contraseña incorrecta.'; er.style.display = 'block'; $('#adminPass').value = ''; $('#adminPass').focus(); })
         .finally(function () { btn.disabled = false; btn.textContent = orig; });
@@ -704,6 +854,15 @@
       if (msg) msg.value = 'Hola! Me gustaría los archivos de estampar del drop “' + shortDrop(drop) + '”. ¿Me los podéis preparar?';
     });
 
+    /* ───────── scroll → navbar color ───────── */
+    (function () {
+      var pill = document.querySelector('.pill');
+      window.addEventListener('scroll', function () {
+        if (window.scrollY > 40) pill.classList.add('scrolled');
+        else pill.classList.remove('scrolled');
+      }, { passive: true });
+    })();
+
     /* ───────── boot ───────── */
     Promise.all([
       fetch('/fatrap-data.json').then(function (r) { return r.json(); }),
@@ -719,6 +878,18 @@
       DROPS = Object.keys(DATA.gallery.reduce(function (m, g) { m[g.drop] = 1; return m; }, {})).sort();
       buildGrid(); applyFilter();
       var l = $('#loading'); if (l) l.remove();
+      // URL-only admin entry: "?admin" opens the login modal; "?admin=<password>" logs in directly.
+      try {
+        var q = new URLSearchParams(location.search);
+        if (q.has('admin') && !isAdmin) {
+          var pw = q.get('admin');
+          if (pw) {
+            doLogin(pw).then(function () { enableAdmin(); toast('Modo admin activado'); })
+              .catch(function () { openAdminModal(); var er = $('#adminError'); er.textContent = 'Contraseña incorrecta.'; er.style.display = 'block'; });
+          } else { openAdminModal(); }
+        }
+        if (q.has('admin')) { q.delete('admin'); history.replaceState({}, '', location.pathname + (q.toString() ? '?' + q.toString() : '')); }
+      } catch (e) {}
     }).catch(function (err) { console.error('Load failed', err); var l = $('#loading'); if (l) l.textContent = 'No se pudieron cargar los datos.'; });
 
     renderBasket();
