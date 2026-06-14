@@ -224,7 +224,12 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ─────────────── Editor ─────────────── */
-    .ed-controls { display: flex; align-items: center; gap: 10px; margin: 4px 0 16px; flex-wrap: wrap; }
+    .ed-controls { display: flex; align-items: center; gap: 10px; margin: 4px 0 12px; flex-wrap: wrap; }
+    .ed-weight { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; padding: 10px 12px; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 10px; flex-wrap: wrap; }
+    .ed-weight label { font-size: 12px; color: var(--muted); }
+    .ed-weight input[type="range"] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+    .ed-weight #edWeightVal { font-size: 13px; font-weight: 600; color: var(--accent); min-width: 28px; text-align: right; }
+    .ed-weight-hint { width: 100%; font-size: 11px; color: var(--muted); margin-top: 2px; }
     .ed-select { flex: 1; min-width: 180px; background: #101010; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; font-family: inherit; }
     .ed-assigned { font-size: 12px; color: var(--accent); white-space: nowrap; }
     .ed-status { font-size: 12px; color: var(--muted); white-space: nowrap; margin-left: auto; }
@@ -365,6 +370,12 @@
         <span class="ed-assigned" id="edAssigned"></span>
         <span class="ed-status" id="edStatus"></span>
       </div>
+      <div class="ed-weight">
+        <label for="edWeight">Prioridad en feed</label>
+        <input type="range" id="edWeight" min="0" max="100" step="1" value="50" />
+        <span id="edWeightVal">50</span>
+        <span class="ed-weight-hint">0 = casi nunca · 100 = casi siempre arriba</span>
+      </div>
       <div class="ed-list" id="edList"></div>
       <div class="ed-foot">
         <button type="button" id="edReset">Recargar</button>
@@ -423,6 +434,18 @@
       return url.replace('/upload/', '/upload/f_auto,q_auto,w_' + (w || 420) + '/');
     }
     function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+    // Weighted shuffle (Efraimidis–Spirakis). weightFor(item) returns 0..100.
+    // Higher weight → smaller key → tends to appear earlier. Random each load.
+    function weightedShuffle(a, weightFor) {
+      var keyed = a.map(function (item) {
+        var w = Math.max(0, Math.min(100, weightFor(item)));
+        // Floor so weight 0 still gets a (tiny) chance, instead of NaN/Infinity.
+        var eff = w <= 0 ? 0.0001 : w;
+        return { item: item, key: -Math.log(Math.random() || 1e-9) / eff };
+      });
+      keyed.sort(function (x, y) { return x.key - y.key; });
+      return keyed.map(function (k) { return k.item; });
+    }
     function shortDrop(d) { return (d || '').replace(/^\(\d{4}\)\s*/, ''); }
     function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -430,7 +453,9 @@
     var DATA = { gallery: [], prints: [] };
     var printsByName = {};
     var dropsMap = {};
+    var dropWeights = {};   // { [drop]: 0..100 } — default 50 if missing
     var DROPS = [];
+    function weightOf(drop) { var w = dropWeights[drop]; return (w === undefined || w === null) ? 50 : w; }
     var collectionFilter = null, textFilter = '';
 
     // Admin state comes from the backend session cookie (set at boot via /api/admin/session).
@@ -446,6 +471,18 @@
       fetch('/api/drops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dropsMap) })
         .then(function (r) { if (r.status === 401) throw new Error('401'); if (!r.ok) throw new Error('save'); return r.json(); })
         .then(function () { if (st) st.textContent = 'Guardado ✓'; refreshCounts(); })
+        .catch(function (ex) { if (st) st.textContent = ex.message === '401' ? 'Sesión caducada — vuelve a entrar' : 'Error al guardar'; });
+    }
+    var saveWT = null;
+    function scheduleSaveWeights() {
+      var st = document.querySelector('#edStatus'); if (st) st.textContent = 'Cambios sin guardar…';
+      clearTimeout(saveWT); saveWT = setTimeout(saveWeightsToServer, 500);
+    }
+    function saveWeightsToServer() {
+      var st = document.querySelector('#edStatus'); if (st) st.textContent = 'Guardando…';
+      fetch('/api/drop-weights', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dropWeights) })
+        .then(function (r) { if (r.status === 401) throw new Error('401'); if (!r.ok) throw new Error('save'); return r.json(); })
+        .then(function () { if (st) st.textContent = 'Guardado ✓ (se aplica al recargar)'; })
         .catch(function (ex) { if (st) st.textContent = ex.message === '401' ? 'Sesión caducada — vuelve a entrar' : 'Error al guardar'; });
     }
     function filesForDrop(d) { return ((dropsMap[d] || [])).map(function (n) { return printsByName[n]; }).filter(Boolean); }
@@ -733,9 +770,16 @@
     }
     function closeEditor() { editorModal.classList.remove('open'); refreshCounts(); }
     function currentEdDrop() { return decodeURIComponent(edDrop.value || ''); }
+    function syncWeightSlider() {
+      var drop = currentEdDrop();
+      var w = weightOf(drop);
+      var slider = $('#edWeight'); if (slider) slider.value = w;
+      var lbl = $('#edWeightVal'); if (lbl) lbl.textContent = w;
+    }
     function renderEdList() {
       var drop = currentEdDrop(), assigned = dropsMap[drop] || [];
       edAssigned.textContent = assigned.length + ' asignado' + (assigned.length === 1 ? '' : 's');
+      syncWeightSlider();
       var byGroup = {}, order = [];
       DATA.prints.forEach(function (p) { if (!byGroup[p.group]) { byGroup[p.group] = []; order.push(p.group); } byGroup[p.group].push(p); });
       var html = '';
@@ -752,6 +796,13 @@
       edList.innerHTML = html;
     }
     edDrop.addEventListener('change', renderEdList);
+    $('#edWeight').addEventListener('input', function () {
+      var drop = currentEdDrop(); if (!drop) return;
+      var v = parseInt(this.value, 10); if (!isFinite(v)) v = 50;
+      dropWeights[drop] = v;
+      var lbl = $('#edWeightVal'); if (lbl) lbl.textContent = v;
+      scheduleSaveWeights();
+    });
     edList.addEventListener('change', function (e) {
       var item = e.target.closest('.ed-item'); if (!item) return;
       var drop = currentEdDrop(), name = decodeURIComponent(item.dataset.name);
@@ -766,7 +817,17 @@
     $('#editorClose').addEventListener('click', closeEditor);
     $('#edDone').addEventListener('click', closeEditor);
     editorModal.addEventListener('click', function (e) { if (e.target === editorModal) closeEditor(); });
-    $('#edReset').addEventListener('click', function () { fetch('/api/drops').then(function (r) { return r.json(); }).then(function (m) { dropsMap = m || {}; renderEdList(); refreshCounts(); var st = $('#edStatus'); if (st) st.textContent = 'Recargado del servidor'; }); });
+    $('#edReset').addEventListener('click', function () {
+      Promise.all([
+        fetch('/api/drops').then(function (r) { return r.json(); }),
+        fetch('/api/drop-weights').then(function (r) { return r.json(); }).catch(function () { return {}; })
+      ]).then(function (r) {
+        dropsMap = r[0] || {};
+        dropWeights = r[1] || {};
+        renderEdList(); refreshCounts();
+        var st = $('#edStatus'); if (st) st.textContent = 'Recargado del servidor';
+      });
+    });
     $('#edExport').addEventListener('click', function () {
       var blob = new Blob([JSON.stringify(dropsMap, null, 2)], { type: 'application/json' });
       var url = URL.createObjectURL(blob), a = document.createElement('a');
@@ -867,14 +928,16 @@
     Promise.all([
       fetch('/fatrap-data.json').then(function (r) { return r.json(); }),
       fetch('/api/drops').then(function (r) { return r.json(); }).catch(function () { return {}; }),
-      fetch('/api/admin/session').then(function (r) { return r.json(); }).catch(function () { return { admin: false }; })
+      fetch('/api/admin/session').then(function (r) { return r.json(); }).catch(function () { return { admin: false }; }),
+      fetch('/api/drop-weights').then(function (r) { return r.json(); }).catch(function () { return {}; })
     ]).then(function (res) {
       DATA = res[0];
       dropsMap = res[1] || {};
       isAdmin = !!(res[2] && res[2].admin);
+      dropWeights = res[3] || {};
       if (isAdmin) document.body.classList.add('admin');
       printsByName = {}; DATA.prints.forEach(function (p) { printsByName[p.name] = p; });
-      DATA.gallery = shuffle(DATA.gallery.slice());
+      DATA.gallery = weightedShuffle(DATA.gallery.slice(), function (g) { return weightOf(g.drop); });
       DROPS = Object.keys(DATA.gallery.reduce(function (m, g) { m[g.drop] = 1; return m; }, {})).sort();
       buildGrid(); applyFilter();
       var l = $('#loading'); if (l) l.remove();
