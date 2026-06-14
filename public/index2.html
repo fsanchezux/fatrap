@@ -96,12 +96,15 @@
 
     /* ─────────────── Masonry grid ─────────────── */
     main { padding: var(--nav-h) var(--gap) 120px; }
-    #grid { column-count: 5; column-gap: var(--gap); }
-    @media (max-width: 1280px) { #grid { column-count: 4; } }
-    @media (max-width: 900px)  { #grid { column-count: 3; } }
-    @media (max-width: 600px)  { #grid { column-count: 2; --gap: 8px; } }
+    /* Row-major masonry: CSS Grid + per-card grid-row-end span computed from
+       image aspect ratio (see JS). This makes priority flow left→right per row
+       instead of column-by-column, so weighted ordering is visible horizontally. */
+    #grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--gap); grid-auto-rows: 8px; grid-auto-flow: row dense; align-items: start; }
+    @media (max-width: 1280px) { #grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 900px)  { #grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 600px)  { #grid { grid-template-columns: repeat(2, 1fr); --gap: 8px; } }
 
-    .card { position: relative; break-inside: avoid; margin-bottom: var(--gap); border-radius: 7px; overflow: hidden; background: #161616; cursor: grab; transition: transform .2s ease, box-shadow .2s ease, filter .3s ease, opacity .3s ease; }
+    .card { position: relative; border-radius: 7px; overflow: hidden; background: #161616; cursor: grab; transition: transform .2s ease, box-shadow .2s ease, filter .3s ease, opacity .3s ease; }
     .card:active { cursor: grabbing; }
     .card.hidden { display: none; }
     .card img { width: 100%; display: block; min-height: 60px; }
@@ -131,7 +134,7 @@
     .folder.drag-active { transform: scale(1.2); }
     .folder.drag-active .folder-front { fill: var(--accent); }
 
-    .empty { column-span: all; text-align: center; color: var(--muted); padding: 80px 20px; font-size: 15px; }
+    .empty { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 80px 20px; font-size: 15px; }
 
     /* ─────────────── Folder drop zone ─────────────── */
     .folder { position: fixed; right: 18px; bottom: 18px; z-index: 45; cursor: pointer; transition: transform .25s ease; filter: drop-shadow(0 8px 18px rgba(0,0,0,.55)); }
@@ -491,6 +494,24 @@
     var toastEl = $('#toast'), toastT;
     function toast(msg) { toastEl.textContent = msg; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function () { toastEl.classList.remove('show'); }, 2400); }
 
+    /* ───────── masonry span (row-major) ───────── */
+    var ROW_H = 8;  // must match grid-auto-rows in CSS
+    function setSpan(card) {
+      var img = card.querySelector('img');
+      if (!img || !img.naturalWidth || !card.offsetWidth) return;
+      var ratio = img.naturalHeight / img.naturalWidth;
+      var height = card.offsetWidth * ratio;
+      var gap = parseFloat(getComputedStyle(grid).rowGap) || 10;
+      var span = Math.ceil((height + gap) / (ROW_H + gap));
+      card.style.gridRowEnd = 'span ' + span;
+    }
+    function recomputeAllSpans() {
+      var cards = grid.querySelectorAll('.card');
+      for (var i = 0; i < cards.length; i++) setSpan(cards[i]);
+    }
+    var resizeT;
+    window.addEventListener('resize', function () { clearTimeout(resizeT); resizeT = setTimeout(recomputeAllSpans, 120); });
+
     /* ───────── grid ───────── */
     function buildGrid() {
       var frag = document.createDocumentFragment();
@@ -503,6 +524,9 @@
 
         var img = document.createElement('img');
         img.loading = 'lazy'; img.decoding = 'async'; img.alt = f.drop; img.src = thumb(f.url);
+        img.addEventListener('load', function () { setSpan(card); });
+        // If a previous load is already cached, fire immediately.
+        if (img.complete && img.naturalWidth) requestAnimationFrame(function () { setSpan(card); });
 
         var veil = document.createElement('div'); veil.className = 'veil';
         var cap = document.createElement('div'); cap.className = 'cap';
