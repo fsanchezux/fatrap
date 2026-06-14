@@ -99,7 +99,7 @@
     /* Row-major masonry: CSS Grid + per-card grid-row-end span computed from
        image aspect ratio (see JS). This makes priority flow left→right per row
        instead of column-by-column, so weighted ordering is visible horizontally. */
-    #grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--gap); grid-auto-rows: 8px; grid-auto-flow: row dense; align-items: start; }
+    #grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--gap); grid-auto-rows: 8px; grid-auto-flow: row; align-items: start; }
     @media (max-width: 1280px) { #grid { grid-template-columns: repeat(4, 1fr); } }
     @media (max-width: 900px)  { #grid { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 600px)  { #grid { grid-template-columns: repeat(2, 1fr); --gap: 8px; } }
