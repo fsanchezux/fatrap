@@ -302,7 +302,7 @@
     <div class="tray-body" id="trayBody"></div>
     <div class="tray-actions">
       <button class="dl" id="downloadZip">Descargar .zip</button>
-      <button class="dl dl-email" id="sendEmail">Enviar por email</button>
+      <button class="dl dl-email" id="sendEmail" style="display:none">Enviar por email</button>
     </div>
   </div>
 
@@ -324,7 +324,7 @@
   <!-- ───── Folder drop zone ───── -->
   <div class="folder" id="folder" role="button" tabindex="0" aria-label="Carpeta — suelta una foto aquí">
     <span class="badge" id="folderBadge">0</span>
-    <svg width="64" height="54" viewBox="0 0 64 54" fill="none" aria-hidden="true">
+    <svg width="94" height="84" viewBox="0 0 64 54" fill="none" aria-hidden="true">
       <path class="folder-back" d="M3 11a4 4 0 0 1 4-4h17l5 6h28a4 4 0 0 1 4 4v3H3V11Z" fill="#4a4a4a"/>
       <path class="folder-front" d="M3 18a4 4 0 0 1 4-4h50a4 4 0 0 1 4 4v28a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V18Z" fill="#3a3a3a"/>
     </svg>
@@ -588,7 +588,7 @@
     function closeTray() { tray.classList.remove('open'); }
     folder.addEventListener('click', function () { tray.classList.toggle('open'); });
     folder.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tray.classList.toggle('open'); } });
-    $('#trayClear').addEventListener('click', function () { basket = []; renderBasket(); });
+    $('#trayClear').addEventListener('click', function () { basket = []; renderBasket(); closeTray(); });
 
     grid.addEventListener('dragstart', function (e) { e.preventDefault(); });
 
