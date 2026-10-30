@@ -1,17 +1,11 @@
-# Fatrap Explorer
+<img width="1871" height="893" alt="Sin título-1" src="https://github.com/user-attachments/assets/2c273204-1e37-48f6-82cf-e21e72048b3f" />
 
-A modern file explorer web application built with Next.js, TailwindCSS, and PostgreSQL.
 
-![Fatrap Explorer](https://via.placeholder.com/800x450?text=Fatrap+Explorer)
+# Fatrap
 
-## Features
+One of my past life projects was expressing myself through a clothing brand called **fatrap**. Over the years, other things took over my focus, but **I didn't want to let that work disappear**. So I gathered all my **designs, photos and files** into an **open-source brand archive**.
 
-- macOS-style file explorer interface
-- Dynamic sidebar with sections loaded from database
-- Grid and list view modes
-- Search functionality
-- Responsive design
-- PostgreSQL database with Prisma ORM
+If it helps even **one young designer avoid starting from scratch**, the job is done.
 
 ## Tech Stack
 
@@ -20,79 +14,15 @@ A modern file explorer web application built with Next.js, TailwindCSS, and Post
 - **Database**: PostgreSQL with Prisma ORM
 - **Deployment**: Vercel
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- PostgreSQL database (or use Vercel Postgres)
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/YOUR_USERNAME/fatrap-explorer.git
-cd fatrap-explorer
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Set up environment variables:
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and add your database URL:
-```
-DATABASE_URL="postgresql://user:password@localhost:5432/fatrap_explorer"
-```
-
-4. Push the database schema:
-```bash
-npm run db:push
-```
-
-5. Seed the database with sample data:
-```bash
-npm run db:seed
-```
-
-6. Start the development server:
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) to see the app.
-
-## Deployment to Vercel
-
-1. Push your code to GitHub
-2. Connect your repository to Vercel
-3. Add your `DATABASE_URL` environment variable in Vercel
-4. Deploy!
-
-### Using Vercel Postgres
-
-1. In your Vercel dashboard, go to Storage
-2. Create a new Postgres database
-3. Connect it to your project
-4. The `DATABASE_URL` will be automatically added
-
-## API Endpoints
-
-### Sidebar Options
-- `GET /api/sidebar-options` - Get all sidebar sections and options
-- `POST /api/sidebar-options` - Create a new sidebar option
-- `GET /api/sidebar-options/[id]` - Get a specific option
-- `PUT /api/sidebar-options/[id]` - Update an option
-- `DELETE /api/sidebar-options/[id]` - Delete an option
-
-### Files
-- `GET /api/files` - Get all files
-
 ## License
 
-MIT
+### Code
+The source code of this project is released under the **MIT License**.
+
+### Photographs
+All photographs in this archive are **copyrighted. All rights reserved.**
+
+- **They may not be used to train, fine-tune or evaluate any AI or machine learning model**, nor be included in any dataset for that purpose.
+- **Any other use requires my prior written permission.** If you want to use them, please contact me first.
+
+  <img width="1923" height="1085" alt="credits" src="https://github.com/user-attachments/assets/b4b0f155-34bf-4fdb-8ef6-153fe0a16ce8" />
